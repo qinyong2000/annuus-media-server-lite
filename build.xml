@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="AnnuusBuild" default="build" basedir=".">
+
+<property name="jarname" value="ams" />
+<property name="dir.temp" value="build/tmp" />
+<property name="dir.src" value="src" />
+<property name="dir.lib" value="lib" />
+<property name="build.dir" value="." />
+<property name="build.dest" value="build/tmp" />
+
+<property name="main.class" value="com.ams.server.Startup" />
+<property name="runtime.classpath" value="" />
+<property name="name" value="ams" />
+<property name="version" value="0.3.0" />
+<property name="vendor" value="" />
+
+<!-- Classpath for the project -->  
+<path id="master-classpath">
+  <fileset dir="${dir.lib}">
+    <include name="*.jar"/>
+  </fileset>
+</path>
+
+<!-- build -->
+<target name="build" depends="package" />
+
+<!-- cleanup -->
+<target name="cleanup">
+  <echo message="Cleanup..." />
+  <delete dir="${dir.temp}" />
+  <mkdir dir="${dir.temp}" />
+</target>
+
+<!-- complie -->
+<target name="compile" depends="cleanup">
+  <echo message="Complie..." />
+  <javac srcdir="${dir.src}" destdir="${dir.temp}" fork="yes" >
+    <exclude name="" />
+    <classpath refid="master-classpath"/>
+  </javac>
+</target>
+
+<!-- package -->
+<target name="package" depends="compile">
+  <echo message="Creating the jar file ${build.dir}/${jarname}.jar"/>
+  <tstamp>
+    <format property="ts" pattern="yyyyMMdd-HHmmss-z"/>
+  </tstamp>
+  <jar jarfile="${build.dir}/${jarname}.jar" basedir="${build.dest}">
+    <manifest>
+      <attribute name="Main-Class" value="${main.class}"/>
+      <attribute name="Class-Path" value="${runtime.classpath}"/>
+      <attribute name="Implementation-Title"   value="${name}"/>
+      <attribute name="Implementation-Version" value="${version}"/>
+      <attribute name="Implementation-Vendor"  value="${vendor}"/>
+      <attribute name="Build-Id" value="${ts} (${user.name} [${os.name} ${os.version} ${os.arch}])"/>
+    </manifest>
+  </jar>
+</target>
+</project>

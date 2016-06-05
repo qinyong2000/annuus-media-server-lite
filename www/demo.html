@@ -1,0 +1,69 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja" lang="ja">
+<head>
+<title>ams demo</title>
+</head>
+
+<script type='text/javascript' src='swfobject.js'></script>
+<script>
+var host = location.hostname;
+</script>
+<body bgcolor="#ffffff">
+<p>Play FLV video file test.flv</p>
+<div id='mediaspace1'>This text will be replaced</div>
+<script type='text/javascript'>
+  var so = new SWFObject('player.swf','ply','470','290','9','#000000');
+  so.addParam('allowfullscreen','true');
+  so.addParam('allowscriptaccess','always');
+  so.addParam('wmode','opaque');
+  so.addVariable('file','test.flv');
+  so.addVariable('streamer','rtmp://' + host);
+  so.write('mediaspace1');
+</script>
+
+<p>Play mp4 video file test.mp4</p>
+<div id='mediaspace2'>This text will be replaced</div>
+<script type='text/javascript'>
+  var so = new SWFObject('player.swf','ply','470','290','9','#000000');
+  so.addParam('allowfullscreen','true');
+  so.addParam('allowscriptaccess','always');
+  so.addParam('wmode','opaque');
+  so.addVariable('file','test.mp4');
+  so.addVariable('streamer','rtmp://' + host);
+  so.write('mediaspace2');
+</script>
+
+<p>Publish camera live stream</p>
+<div id='mediaspace3'>This text will be replaced</div>
+<script type='text/javascript'>
+  var so = new SWFObject('player.swf','ply','470','290','9','#000000');
+  so.addParam('allowfullscreen','true');
+  so.addParam('allowscriptaccess','always');
+  so.addParam('wmode','opaque');
+  so.addParam('bufferlength','0');
+  so.addVariable('file','myvideo');
+  so.addVariable('type','camera');
+  so.addVariable('streamer','rtmp://' + host + '/webcam');
+  so.write('mediaspace3');
+</script>
+
+<p>
+You also can use Adobe Flash Media Live Encoder to publish live stream.<br/>
+FMS URL: rtmp://<script>document.write(host);</script>/webcam<br/>
+Stream: myvideo<br/>
+</p>
+<p>Play above camera live stream</p>
+<div id='mediaspace4'>This text will be replaced</div>
+<script type='text/javascript'>
+  var so = new SWFObject('player.swf','ply','470','290','9','#000000');
+  so.addParam('allowfullscreen','true');
+  so.addParam('allowscriptaccess','always');
+  so.addParam('wmode','opaque');
+  so.addParam('bufferlength','0');
+  so.addVariable('file','myvideo');
+  so.addVariable('type','rtmp');
+  so.addVariable('streamer','rtmp://' + host + '/webcam');
+  so.write('mediaspace4');
+</script>
+
+</body>
+</html>
