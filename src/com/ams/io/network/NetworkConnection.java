@@ -15,6 +15,8 @@ public class NetworkConnection extends Connection {
     protected int interestOps;
     protected ByteBuffer readBuffer = null;
     protected long keepAliveTime;
+    protected int writeTimeout = DEFAULT_TIMEOUT_MS;
+    protected int writeRetryCount = 2;
     
     public NetworkConnection() {
         super();
@@ -28,6 +30,9 @@ public class NetworkConnection extends Connection {
     }
 
     protected void readChannel() throws IOException {
+        if (isReadBlocking()) {
+            return;
+        }
         if (readBuffer == null || readBuffer.remaining() < MIN_READ_BUFFER_SIZE) {
             readBuffer = ByteBufferFactory.allocate(MAX_READ_BUFFER_SIZE);
         }
@@ -35,7 +40,7 @@ public class NetworkConnection extends Connection {
         if (readBytes > 0) {
             ByteBuffer slicedBuffer = readBuffer.slice();
             readBuffer.flip();
-            offerInBuffers(new ByteBuffer[] { readBuffer });
+            offerInboundBuffers(new ByteBuffer[] { readBuffer });
             readBuffer = slicedBuffer;
         } else if (readBytes == -1) {
             throw new EOFException("read channel eof");
@@ -47,7 +52,6 @@ public class NetworkConnection extends Connection {
         Selector writeSelector = null;
         SelectionKey writeKey = null;
         int retry = 0;
-        int writeTimeout = 1000;
         try {
             while (data != null) {
                 long len = channel.write(data);
@@ -82,7 +86,7 @@ public class NetworkConnection extends Connection {
                         }
                     }
                     if (writeSelector.select(writeTimeout) == 0) {
-                        if (retry > 2) {
+                        if (retry > writeRetryCount) {
                             throw new IOException("Client disconnected");
                         }
                     }
@@ -126,7 +130,7 @@ public class NetworkConnection extends Connection {
         if (outStream != null) {
             outStream.flush();
         }
-        ByteBuffer[] buf = pollOutBuffers();
+        ByteBuffer[] buf = pollOutboundBuffers();
         if (buf.length > 0) {
             writeToChannel(buf);
         }

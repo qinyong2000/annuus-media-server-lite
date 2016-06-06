@@ -15,10 +15,11 @@ import com.ams.io.ByteBufferOutputStream;
 
 public class Connection implements IByteBufferReader, IByteBufferWriter {
     protected static final int DEFAULT_TIMEOUT_MS = 30000;
-    protected static final int MAX_QUEUE_SIZE = 1024;
-    protected ConcurrentLinkedQueue<ByteBuffer> inBufferQueue = new ConcurrentLinkedQueue<ByteBuffer>();
-    protected ConcurrentLinkedQueue<ByteBuffer> outBufferQueue = new ConcurrentLinkedQueue<ByteBuffer>();
-    protected AtomicLong available = new AtomicLong(0);
+    protected static final int MAX_INBOUND_QUEUE_SIZE = 512;
+    protected static final int MAX_OUTBOUND_QUEUE_SIZE = 512;
+    protected ConcurrentLinkedQueue<ByteBuffer> inboundBufferQueue = new ConcurrentLinkedQueue<ByteBuffer>();
+    protected ConcurrentLinkedQueue<ByteBuffer> outboundBufferQueue = new ConcurrentLinkedQueue<ByteBuffer>();
+    protected AtomicLong readAvailable = new AtomicLong(0);
     protected boolean closed = true;
     protected int readTimeout = DEFAULT_TIMEOUT_MS;
     
@@ -58,29 +59,40 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
     public boolean isClosed() {
         return closed;
     }
-
+    
+    public void clear() {
+        inboundBufferQueue.clear();
+        outboundBufferQueue.clear();
+        readAvailable.set(0);
+        closed = true;
+    }
+    
+    public boolean isReadBlocking() {
+      return inboundBufferQueue.size() > MAX_INBOUND_QUEUE_SIZE;
+    }
+    
     public boolean isWriteBlocking() {
-        return outBufferQueue.size() > MAX_QUEUE_SIZE;
+        return outboundBufferQueue.size() > MAX_OUTBOUND_QUEUE_SIZE;
     }
 
-    public long available() {
-        return available.get();
+    public long readAvailable() {
+        return readAvailable.get();
     }
 
-    public void offerInBuffers(ByteBuffer buffers[]) {
+    public void offerInboundBuffers(ByteBuffer buffers[]) {
         for (ByteBuffer buffer : buffers) {
-            inBufferQueue.offer(buffer);
-            available.addAndGet(buffer.remaining());
+            inboundBufferQueue.offer(buffer);
+            readAvailable.addAndGet(buffer.remaining());
         }
-        synchronized (inBufferQueue) {
-            inBufferQueue.notifyAll();
+        synchronized (inboundBufferQueue) {
+            inboundBufferQueue.notifyAll();
         }
     }
 
-    public ByteBuffer[] pollOutBuffers() {
+    public ByteBuffer[] pollOutboundBuffers() {
         List<ByteBuffer> buffers = new ArrayList<ByteBuffer>();
         ByteBuffer data;
-        while ((data = outBufferQueue.poll()) != null) {
+        while ((data = outboundBufferQueue.poll()) != null) {
             buffers.add(data);
         }
         return buffers.toArray(new ByteBuffer[buffers.size()]);
@@ -91,18 +103,18 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         int length = size;
         while (length > 0) {
             // read a buffer with blocking
-            ByteBuffer buffer = inBufferQueue.peek();
+            ByteBuffer buffer = inboundBufferQueue.peek();
             if (buffer != null) {
                 int remain = buffer.remaining();
 
                 if (length >= remain) {
-                    list.add(inBufferQueue.poll());
+                    list.add(inboundBufferQueue.poll());
                     length -= remain;
-                    available.addAndGet(-remain);
+                    readAvailable.addAndGet(-remain);
                 } else {
                     ByteBuffer slice = BufferUtils.trim(buffer, length);
                     list.add(slice);
-                    available.addAndGet(-length);
+                    readAvailable.addAndGet(-length);
                     length = 0;
                 }
             } else {
@@ -110,8 +122,8 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
                 // sleep for timeout ms
                 long start = System.currentTimeMillis();
                 try {
-                    synchronized (inBufferQueue) {
-                        inBufferQueue.wait(readTimeout);
+                    synchronized (inboundBufferQueue) {
+                        inboundBufferQueue.wait(readTimeout);
                     }
                 } catch (InterruptedException e) {
                     throw new IOException("read interrupted");
@@ -130,7 +142,7 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
             return;
         }
         for (ByteBuffer buf : data) {
-            outBufferQueue.offer(buf);
+            outboundBufferQueue.offer(buf);
         }
     }
 
@@ -140,12 +152,12 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         }
     }
 
-    public boolean waitInData(int time) {
-        if (available.get() == 0) {
+    public boolean waitForInboundData(int time) {
+        if (readAvailable.get() == 0) {
             long start = System.currentTimeMillis();
             try {
-                synchronized (inBufferQueue) {
-                    inBufferQueue.wait(time);
+                synchronized (inboundBufferQueue) {
+                    inboundBufferQueue.wait(time);
                 }
             } catch (InterruptedException e) {
             }
@@ -158,11 +170,11 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         return true;
     }
 
-    public int getTimeout() {
+    public int getReadTimeout() {
         return readTimeout;
     }
 
-    public void setTimeout(int timeout) {
+    public void setReadTimeout(int timeout) {
         this.readTimeout = timeout;
     }
 
@@ -175,13 +187,13 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
     }
     
     public void addListener(ConnectionListener listener) {
-        if (!this.listeners.contains(listener)) {
-            this.listeners.add(listener);
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
         }
     }
 
     public boolean removeListener(ConnectionListener listener) {
-        return this.listeners.remove(listener);
+        return listeners.remove(listener);
     }
     
 }

@@ -34,14 +34,14 @@ public class ReplSlaveHandler implements IProtocolHandler {
     private boolean connectToSender() {
         logger.info("connect to {}:{} ...", senderHost, senderPort);
         try {
-            connection.setTimeout(5000);
+            connection.setReadTimeout(5000);
             connection.connect(new InetSocketAddress(senderHost, senderPort));
             logger.info("connected.");
         } catch (IOException e) {
             logger.info("connect sender error");
             return false;
         }
-        connection.setTimeout(DEFAULT_TIMEOUT_MS);
+        connection.setReadTimeout(DEFAULT_TIMEOUT_MS);
         return true;
     }
 
