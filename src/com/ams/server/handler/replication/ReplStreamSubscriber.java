@@ -24,32 +24,27 @@ class ReplStreamSubscriber extends StreamSubscriber {
         super.messageNotify(msg);
 
         if (publishCommandTimer && isTimeout()) {
-           sendMediaHeader();
+            sendPublishCommand();
+            sendMediaHeader();
         }
     }
 
-    public void sendMediaHeader() {
-        sendPublishCommand();
-        super.sendMediaHeader();
-    }
-
-    public void sendPublishCommand() {
+    protected void sendPublishCommand() {
         try {
-            AmfValue[] args = AmfValue.array(null, publisher.getPublishName(),
-                    "live");
+            AmfValue[] args = AmfValue.array(null, publisher.getPublishName(), "live");
             RtmpMessage message = new RtmpMessageCommand("publish", 1, args);
             stream.writeMessage(message);
         } catch (IOException e) {
         }
     }
 
-    public void sendCloseStreamCommand() throws IOException {
+    protected void sendCloseStreamCommand() throws IOException {
         AmfValue[] args = { new AmfValue(null) };
         RtmpMessage message = new RtmpMessageCommand("closeStream", 0, args);
         stream.writeMessage(message);
     }
 
-    public void setPublishCommandTimer() {
+    protected void setPublishCommandTimer() {
         this.publishCommandTimer = true;
     }
 
