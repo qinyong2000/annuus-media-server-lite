@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ams.server.handler.IProtocolService;
+
 public class Dispatcher extends NetworkHandler {
     final private Logger logger = LoggerFactory.getLogger(Dispatcher.class);
 
@@ -18,6 +20,7 @@ public class Dispatcher extends NetworkHandler {
     private long lastExpirationTime = 0;
     private Selector selector = null;
     private ConcurrentLinkedQueue<NetworkConnection> registerConnectionQueue = null;
+    private IProtocolService protocolService = null;
 
     public Dispatcher() throws IOException {
         super("dispatcher");
@@ -25,6 +28,11 @@ public class Dispatcher extends NetworkHandler {
         registerConnectionQueue = new ConcurrentLinkedQueue<NetworkConnection>();
     }
 
+    public Dispatcher(IProtocolService protocolService) throws IOException {
+        this();
+        this.protocolService = protocolService;
+    }
+    
     public void addChannelToRegister(NetworkConnection connection) {
         registerConnectionQueue.offer(connection);
         selector.wakeup();
@@ -88,14 +96,14 @@ public class Dispatcher extends NetworkHandler {
                 if (key.isConnectable()) {
                     if (connection.finishConnect()) {
                         key.interestOps(SelectionKey.OP_READ);
-                        connection.open();
+                        openConnection(connection);
                     }
                 }
 
                 if (key.isReadable()) {
                     connection.readChannel();
                     if (connection.isClosed()) {
-                        connection.open();
+                        openConnection(connection);
                     }
                     
                 }
@@ -108,7 +116,14 @@ public class Dispatcher extends NetworkHandler {
             }
         }
     }
-
+    
+    private void openConnection(NetworkConnection connection) {
+        connection.open();
+        if (protocolService != null) {
+          protocolService.invoke(connection);
+        }
+    }
+    
     private void expireIdleKeys() {
         // check every timeExpire
         long now = System.currentTimeMillis();

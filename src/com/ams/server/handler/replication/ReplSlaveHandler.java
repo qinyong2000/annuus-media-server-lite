@@ -47,7 +47,7 @@ public class ReplSlaveHandler implements IProtocolHandler {
             logger.info("connect master error");
             return false;
         }
-        connection.setTimeout(DEFAULT_TIMEOUT_MS);
+        connection.setReadTimeout(DEFAULT_TIMEOUT_MS);
         return true;
     }
 

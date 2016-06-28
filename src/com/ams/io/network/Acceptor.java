@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.ams.server.handler.IProtocolService;
 
-public class Acceptor extends NetworkHandler implements ConnectionListener {
+public class Acceptor extends NetworkHandler {
     final private Logger logger = LoggerFactory.getLogger(Acceptor.class);
 
     private SocketAddress listenAddress;
@@ -45,12 +45,6 @@ public class Acceptor extends NetworkHandler implements ConnectionListener {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-    
-    private NetworkConnection createConnection() {
-        NetworkConnection connection = new NetworkConnection();
-        connection.addListener(this);
-        return connection;
     }
     
     public void run() {
@@ -94,7 +88,7 @@ public class Acceptor extends NetworkHandler implements ConnectionListener {
                     if (dispatchers != null) {
                         Dispatcher dispatcher = dispatchers.get(nextDispatcher++);
                         // create connection
-                        NetworkConnection connection = createConnection();
+                        NetworkConnection connection = new NetworkConnection();
                         connection.setChannelInterestOps(channel, SelectionKey.OP_READ);
                         dispatcher.addChannelToRegister(connection);
                         logger.debug("accept connection: {}", connection);
@@ -120,7 +114,7 @@ public class Acceptor extends NetworkHandler implements ConnectionListener {
     public void start() {
         try {
             for (int i = 0; i < dispatcherSize; i++) {
-                Dispatcher dispatcher = new Dispatcher();
+                Dispatcher dispatcher = new Dispatcher(protocolService);
                 dispatchers.add(dispatcher);
                 dispatcher.start();
             }
@@ -138,16 +132,5 @@ public class Acceptor extends NetworkHandler implements ConnectionListener {
         closeChannel();
         super.stop();
     }
-
-    @Override
-    public void connectionEstablished(Connection conn) {
-        NetworkConnection connection = (NetworkConnection)conn;
-        protocolService.invoke(connection);
-    }
-
-    @Override
-    public void connectionClosed(Connection conn) {
-    }
-
 
 }

@@ -32,13 +32,13 @@ public class RtmpConnection {
 
     public synchronized boolean readRtmpMessage() throws IOException,
             AmfException, RtmpException {
-        conn.waitInData(WAIT_DATA_TIME);
+        conn.waitForInboundData(WAIT_DATA_TIME);
 
         if (currentHeader != null && currentMessage != null) {
             currentHeader = null;
             currentMessage = null;
         }
-        if (conn.available() == 0) {
+        if (conn.readAvailable() == 0) {
             return false;
         }
         // read header every time, a message maybe break into several chunks

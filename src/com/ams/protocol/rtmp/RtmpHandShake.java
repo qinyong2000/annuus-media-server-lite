@@ -431,7 +431,7 @@ public class RtmpHandShake {
 
     public boolean doClientHandshake() throws IOException, RtmpException {
         boolean stateChanged = false;
-        long available = conn.available();
+        long available = conn.readAvailable();
 
         switch (state) {
         case STATE_UNINIT:
@@ -468,7 +468,7 @@ public class RtmpHandShake {
     }
 
     public void doServerHandshake() throws IOException, RtmpException {
-        long available = conn.available();
+        long available = conn.readAvailable();
 
         switch (state) {
         case STATE_UNINIT:
