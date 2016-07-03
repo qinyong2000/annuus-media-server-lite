@@ -9,7 +9,12 @@ import com.ams.protocol.rtmp.amf.*;
 import com.ams.protocol.rtmp.message.*;
 
 public class RtmpConnection {
-	private static int WAIT_DATA_TIME = 10;
+    private static int WAIT_DATA_TIME = 10;
+    private static int CHUNK_STREAM_ID_PROTOCOL_CONTROL = 2;
+    private static int CHUNK_STREAM_ID_DEFAULT          = 3;
+    private static int CHUNK_STREAM_ID_VIDEO            = 5;
+    private static int CHUNK_STREAM_ID_AUDIO            = 6;
+	
     private Connection conn;
     private ByteBufferInputStream in;
     private ByteBufferOutputStream out;
@@ -35,6 +40,7 @@ public class RtmpConnection {
         conn.waitForInboundData(WAIT_DATA_TIME);
 
         if (currentHeader != null && currentMessage != null) {
+            // read new chunk
             currentHeader = null;
             currentMessage = null;
         }
@@ -48,7 +54,7 @@ public class RtmpConnection {
         if (currentMessage == null) {
             currentMessage = messageDeserializer.read(currentHeader);
             if (currentMessage == null) {
-                currentHeader = null;
+                currentHeader = null;   // read next chunk
             }
         }
 
@@ -61,15 +67,27 @@ public class RtmpConnection {
 
     public synchronized void writeRtmpMessage(int chunkStreamId, int streamId,
             long timestamp, RtmpMessage message) throws IOException {
-        messageSerializer.write(chunkStreamId, streamId, timestamp, message);
+        if (chunkStreamId > CHUNK_STREAM_ID_PROTOCOL_CONTROL) {
+            messageSerializer.write(chunkStreamId, streamId, timestamp, message);
+        }
     }
 
+    public synchronized void writeRtmpMessage(int streamId, long timestamp, RtmpMessage message) throws IOException {
+        if (message instanceof RtmpMessageVideo) {
+            messageSerializer.write(CHUNK_STREAM_ID_VIDEO, streamId, timestamp, message);
+        } else if (message instanceof RtmpMessageAudio) {
+            messageSerializer.write(CHUNK_STREAM_ID_AUDIO, streamId, timestamp, message);
+        } else {
+            messageSerializer.write(CHUNK_STREAM_ID_DEFAULT, streamId, timestamp, message);
+        }
+    }
+    
     public synchronized void writeProtocolControlMessage(RtmpMessage message)
             throws IOException {
-        messageSerializer.write(2, 0, 0, message);
+        messageSerializer.write(CHUNK_STREAM_ID_PROTOCOL_CONTROL, 0, 0, message);
     }
 
-    public Connection getConnector() {
+    public Connection getConnection() {
         return conn;
     }
 

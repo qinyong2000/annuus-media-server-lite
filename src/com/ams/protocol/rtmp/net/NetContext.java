@@ -5,7 +5,7 @@ import java.util.HashMap;
 
 import com.ams.media.MimeTypes;
 
-public final class NetContext {
+public class NetContext {
     private final String contextRoot;
     private HashMap<String, String> attributes;
 

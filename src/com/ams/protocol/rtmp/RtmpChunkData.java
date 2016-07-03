@@ -5,30 +5,31 @@ import com.ams.io.buffer.DataBuffer;
 import com.ams.io.ByteBufferInputStream;
 
 class RtmpChunkData {
-    private RtmpHeader header;
-    private DataBuffer chunkData = new DataBuffer();
-    private int chunkSize;
+    private DataBuffer data = new DataBuffer();
+    private int length;
+    private int remainBytes;
 
     public RtmpChunkData(RtmpHeader header) {
-        this.header = header;
-        this.chunkSize = header.getSize();
+        this.length = header.getSize();
+        this.remainBytes = length;
     }
 
-    public void read(ByteBufferInputStream in, int size) throws IOException {
-        if (size <= 0) return;
-        chunkData.write(in.readByteBuffer(size));
-        chunkSize -= size;
+    public void readChunk(ByteBufferInputStream in, int chunkSize) throws IOException {
+        if (chunkSize <= 0) return;
+        data.write(in.readByteBuffer(chunkSize));
+        remainBytes -= chunkSize;
     }
 
-    public DataBuffer getChunkData() {
-        return chunkData;
+    public DataBuffer getData() {
+        return data;
     }
 
+    public int getLength() {
+        return length;
+    }
+    
     public int getRemainBytes() {
-        return chunkSize;
+        return remainBytes;
     }
 
-    public RtmpHeader getHeader() {
-        return header;
-    }
 }

@@ -20,7 +20,7 @@ public class RtmpHeader {
         return chunkStreamId;
     }
 
-    public void setChunkStreamId(int chunkStreamId) {
+    protected void setChunkStreamId(int chunkStreamId) {
         this.chunkStreamId = chunkStreamId;
     }
 
@@ -28,7 +28,7 @@ public class RtmpHeader {
         return type;
     }
 
-    public void setType(int type) {
+    protected void setType(int type) {
         this.type = type;
     }
 
@@ -36,7 +36,7 @@ public class RtmpHeader {
         return size;
     }
 
-    public void setSize(int size) {
+    protected void setSize(int size) {
         this.size = size;
     }
 
@@ -44,7 +44,7 @@ public class RtmpHeader {
         return streamId;
     }
 
-    public void setStreamId(int streamId) {
+    protected void setStreamId(int streamId) {
         this.streamId = streamId;
     }
 
@@ -52,7 +52,7 @@ public class RtmpHeader {
         return timestamp;
     }
 
-    public void setTimestamp(long timestamp) {
+    protected void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
     }
 

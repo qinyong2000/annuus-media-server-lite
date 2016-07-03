@@ -20,11 +20,10 @@ import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.message.*;
 
 public class NetStream {
-    final private Logger logger = LoggerFactory.getLogger(NetStream.class);
+    private Logger logger = LoggerFactory.getLogger(NetStream.class);
     private RtmpConnection rtmp;
-    private int chunkStreamId = 3;
     private int streamId;
-    private String streamName;
+    private String playStreamName;
     private int transactionId = 0;
     private long timeStamp = 0;
 
@@ -37,17 +36,7 @@ public class NetStream {
     }
 
     public void writeMessage(RtmpMessage message) throws IOException {
-        if (message instanceof RtmpMessageVideo) {
-            rtmp.writeRtmpMessage(5, streamId, timeStamp, message);
-        } else if (message instanceof RtmpMessageAudio) {
-            rtmp.writeRtmpMessage(6, streamId, timeStamp, message);
-        } else {
-            rtmp.writeRtmpMessage(chunkStreamId, streamId, timeStamp, message);
-        }
-    }
-
-    public void writeMessage(long time, RtmpMessage message) throws IOException {
-        rtmp.writeRtmpMessage(chunkStreamId, streamId, time, message);
+        rtmp.writeRtmpMessage(streamId, timeStamp, message);
     }
 
     public void writeStatusMessage(String status, AmfValue info)
@@ -96,11 +85,7 @@ public class NetStream {
     }
 
     public boolean isWriteBlocking() {
-        return rtmp.getConnector().isWriteBlocking();
-    }
-
-    public void setChunkStreamId(int chunkStreamId) {
-        this.chunkStreamId = chunkStreamId;
+        return rtmp.getConnection().isWriteBlocking();
     }
 
     public void setTransactionId(int transactionId) {
@@ -143,12 +128,12 @@ public class NetStream {
                 "NetStream.Seek.Notify",
                 AmfValue.newObject()
                         .put("description", "Seeking " + time + ".")
-                        .put("details", streamName).put("clientId", streamId));
+                        .put("details", playStreamName).put("clientId", streamId));
 
         writeStatusMessage(
                 "NetStream.Play.Start",
                 AmfValue.newObject()
-                        .put("description", "Start playing " + streamName + ".")
+                        .put("description", "Start playing " + playStreamName + ".")
                         .put("clientId", streamId));
 
     }
@@ -159,7 +144,7 @@ public class NetStream {
             writeErrorMessage("This channel is already playing");
             return;
         }
-        this.streamName = streamName;
+        this.playStreamName = streamName;
 
         // set chunk size
         rtmp.writeProtocolControlMessage(new RtmpMessageChunkSize(1024));
@@ -288,7 +273,7 @@ public class NetStream {
                 "NetStream.Play.Stop",
                 AmfValue.newObject()
                         .put("description",
-                                "Stoped playing " + streamName + ".")
+                                "Stoped playing " + playStreamName + ".")
                         .put("clientId", streamId));
     }
 

@@ -24,7 +24,7 @@ public class Server {
 
     private Configuration config;
     private ArrayList<Acceptor> acceptors;
-    private IProtocolHandler replicationSalveHandler;
+    private IProtocolHandler replicationSlaveHandler;
     private ProtocolHandlerExecutor executor;
 
     public Server(Configuration config) throws IOException {
@@ -96,8 +96,8 @@ public class Server {
         }
 
         if (config.getReplicationMasterHost() != null) {
-            replicationSalveHandler = new ReplSlaveHandler(config.getReplicationMasterHost(), config.getReplicationMasterPort());
-            executor.execute(replicationSalveHandler);
+            replicationSlaveHandler = new ReplSlaveHandler(config.getReplicationMasterHost(), config.getReplicationMasterPort());
+            executor.execute(replicationSlaveHandler);
         }
     }
 
@@ -116,8 +116,8 @@ public class Server {
     }
 
     public void shutdown() {
-        if (replicationSalveHandler != null) {
-            replicationSalveHandler.close();
+        if (replicationSlaveHandler != null) {
+            replicationSlaveHandler.close();
         }
         for (Acceptor acceptor : acceptors) {
             acceptor.stop();

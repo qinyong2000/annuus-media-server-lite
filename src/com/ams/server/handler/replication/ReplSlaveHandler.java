@@ -21,14 +21,13 @@ import com.ams.protocol.rtmp.net.PublisherManager;
 import com.ams.server.handler.IProtocolHandler;
 
 public class ReplSlaveHandler implements IProtocolHandler {
-    final private Logger logger = LoggerFactory.getLogger(ReplSlaveHandler.class);
-    private static final int DEFAULT_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+    private final Logger logger = LoggerFactory.getLogger(ReplSlaveHandler.class);
 
     private String masterHost = null;
     private int masterPort;
     private NetworkClientConnection connection;
     private RtmpConnection rtmp;
-    private HashMap<Integer, String> streams = new HashMap<Integer, String>();
+    private HashMap<Integer, String> publishingStreams = new HashMap<Integer, String>();
 
     public ReplSlaveHandler(String host, int port) {
         this.masterHost = host;
@@ -40,14 +39,12 @@ public class ReplSlaveHandler implements IProtocolHandler {
     private boolean connectToMaster() {
         logger.info("connect to master {}:{} ...", masterHost, masterPort);
         try {
-            connection.setTimeout(5000);
             connection.connect(new InetSocketAddress(masterHost, masterPort));
             logger.info("connected.");
         } catch (IOException e) {
             logger.info("connect master error");
             return false;
         }
-        connection.setReadTimeout(DEFAULT_TIMEOUT_MS);
         return true;
     }
 
@@ -96,17 +93,17 @@ public class ReplSlaveHandler implements IProtocolHandler {
                 int streamId = header.getStreamId();
                 AmfValue[] args = command.getArgs();
                 String publishName = args[1].string();
-                streams.put(streamId, publishName);
+                publishingStreams.put(streamId, publishName);
                 if (PublisherManager.getPublisher(publishName) == null) {
                     PublisherManager.addPublisher(new ReplStreamPublisher(publishName));
                 }
                 logger.debug("received publish: {}", publishName);
             } else if ("closeStream".equals(command.getName())) {
                 int streamId = header.getStreamId();
-                String publishName = streams.get(streamId);
+                String publishName = publishingStreams.get(streamId);
                 if (publishName == null)
                     break;
-                streams.remove(streamId);
+                publishingStreams.remove(streamId);
                 IMsgPublisher publisher = PublisherManager.getPublisher(publishName);
                 if (publisher != null) {
                     publisher.close();
@@ -120,7 +117,7 @@ public class ReplSlaveHandler implements IProtocolHandler {
         case RtmpMessage.MESSAGE_VIDEO:
         case RtmpMessage.MESSAGE_AMF0_DATA:
             int streamId = header.getStreamId();
-            String publishName = streams.get(streamId);
+            String publishName = publishingStreams.get(streamId);
             if (publishName == null)
                 break;
             IMsgPublisher publisher = PublisherManager.getPublisher(publishName);
@@ -131,11 +128,11 @@ public class ReplSlaveHandler implements IProtocolHandler {
         }
     }
     private void send() {
+        
         try {
             AmfValue[] args = AmfValue.array(null, publishName);
-            RtmpMessage message = new RtmpMessageCommand("subscribe", TANSACTION_ID,
-                    args);
-            rtmp.writeRtmpMessage(CHANNEL_RTMP_PUBLISH, streamId, 0, message);
+            RtmpMessage message = new RtmpMessageCommand("subscribe", 0, args);
+            rtmp.writeRtmpMessage(0, 0, message);
         } catch (IOException e) {
         }
         

@@ -13,7 +13,7 @@ import com.ams.protocol.rtmp.message.*;
 import com.ams.protocol.rtmp.*;
 
 public class NetConnection {
-    final private Logger logger = LoggerFactory.getLogger(NetConnection.class);
+    private Logger logger = LoggerFactory.getLogger(NetConnection.class);
 
     private RtmpHandShake handshake;
     private RtmpConnection rtmp;

@@ -68,9 +68,7 @@ public class RtmpHeaderDeserializer {
             lastHeader.setTimestamp(lastTimestamp + ts);
         }
 
-        return new RtmpHeader(chunkStreamId, lastHeader.getTimestamp(),
-                lastHeader.getSize(), lastHeader.getType(),
-                lastHeader.getStreamId());
+        return lastHeader;
     }
 
 }

@@ -1,4 +1,4 @@
-package com.ams.protocol.rtmp.client;
+package com.ams.tools;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -21,23 +21,23 @@ import com.ams.protocol.rtmp.net.NetStream;
 import com.ams.protocol.rtmp.net.StreamPlayer;
 
 public class RtmpClient implements Runnable {
-    final static private Logger logger = LoggerFactory
-            .getLogger(RtmpClient.class);
+    interface RtmpClientEventListener {
+        public void onResult(AmfValue[] result);
+        public void onStatus(AmfValue[] status);
+    }
+    
+    private static Logger logger = LoggerFactory.getLogger(RtmpClient.class);
     private static int DEFAULT_TIMEOUT = 60 * 1000;
     private NetworkClientConnection conn;
     private RtmpConnection rtmp;
     private RtmpHandShake handshake;
 
-    private final static int TANSACTION_ID = 1;
+    private final static int TANSACTION_ID = 1;  // always 1
 
-    private final static int CHANNEL_RTMP_COMMAND = 3;
-    private final static int CHANNEL_RTMP_PUBLISH = 7;
-
-    private final static String CREATE_STREAM_ID_KEY = "createStreamId";
-    private final static String PUBLISH_STREAM_ID_KEY = "publishStreamId";
-    private final static String PUBLISH_FILE_NAME_KEY = "publishFileName";
-    private final static String PUBLISH_PLAYER_KEY = "publishPlayer";
-
+    private final static String CONTEXT_KEY_CREATE_STREAM_ID = "createStreamId";
+    private final static String CONTEXT_KEY_PUBLISH_STREAM_ID = "publishStreamId";
+    private final static String CONTEXT_KEY_PUBLISH_FILE_NAME = "publishFileName";
+    private final static String CONTEXT_KEY_PUBLISH_PLAYER = "publishPlayer";
     private HashMap<String, Object> context = new HashMap<String, Object>();
     private boolean success = false;
     private String errorMsg = "";
@@ -125,9 +125,8 @@ public class RtmpClient implements Runnable {
             }
         };
         AmfValue[] args = { AmfValue.newObject().put("app", app) };
-        RtmpMessage message = new RtmpMessageCommand("connect", TANSACTION_ID,
-                args);
-        rtmp.writeRtmpMessage(CHANNEL_RTMP_COMMAND, 0, 0, message);
+        RtmpMessage message = new RtmpMessageCommand("connect", TANSACTION_ID, args);
+        rtmp.writeRtmpMessage(0, 0, message);
         if (!waitResponse()) {
             success = false;
         }
@@ -135,12 +134,12 @@ public class RtmpClient implements Runnable {
     }
 
     public int createStream() throws IOException {
-        context.put(CREATE_STREAM_ID_KEY, -1);
+        context.put(CONTEXT_KEY_CREATE_STREAM_ID, -1);
         errorMsg = "";
         eventListener = new RtmpClientEventListener() {
             public void onResult(AmfValue[] result) {
                 int streamId = result[1].integer();
-                context.put(CREATE_STREAM_ID_KEY, streamId);
+                context.put(CONTEXT_KEY_CREATE_STREAM_ID, streamId);
                 logger.debug("rtmp stream created.");
             }
 
@@ -150,11 +149,11 @@ public class RtmpClient implements Runnable {
         AmfValue[] args = { new AmfValue(null) };
         RtmpMessage message = new RtmpMessageCommand("createStream",
                 TANSACTION_ID, args);
-        rtmp.writeRtmpMessage(CHANNEL_RTMP_COMMAND, 0, 0, message);
+        rtmp.writeRtmpMessage(0, 0, message);
         if (!waitResponse()) {
-            context.put(CREATE_STREAM_ID_KEY, -1);
+            context.put(CONTEXT_KEY_CREATE_STREAM_ID, -1);
         }
-        return (Integer) context.get(CREATE_STREAM_ID_KEY);
+        return (Integer) context.get(CONTEXT_KEY_CREATE_STREAM_ID);
     }
 
     public boolean publish(int streamId, String publishName, String fileName)
@@ -162,8 +161,8 @@ public class RtmpClient implements Runnable {
         success = false;
         errorMsg = "";
 
-        context.put(PUBLISH_STREAM_ID_KEY, streamId);
-        context.put(PUBLISH_FILE_NAME_KEY, fileName);
+        context.put(CONTEXT_KEY_PUBLISH_STREAM_ID, streamId);
+        context.put(CONTEXT_KEY_PUBLISH_FILE_NAME, fileName);
         eventListener = new RtmpClientEventListener() {
             public void onResult(AmfValue[] result) {
             }
@@ -172,16 +171,16 @@ public class RtmpClient implements Runnable {
                 Map<String, AmfValue> result = status[1].object();
                 String level = result.get("level").string();
                 if ("status".equals(level)) {
-                    int streamId = (Integer) context.get(PUBLISH_STREAM_ID_KEY);
+                    int streamId = (Integer) context.get(CONTEXT_KEY_PUBLISH_STREAM_ID);
                     String fileName = (String) context
-                            .get(PUBLISH_FILE_NAME_KEY);
+                            .get(CONTEXT_KEY_PUBLISH_FILE_NAME);
                     NetStream stream = new NetStream(rtmp, streamId);
                     try {
                         StreamPlayer player = stream.createPlayer(null,
                                 fileName);
                         if (player != null) {
                             player.seek(0);
-                            context.put(PUBLISH_PLAYER_KEY, player);
+                            context.put(CONTEXT_KEY_PUBLISH_PLAYER, player);
                             logger.debug("rtmp stream start to publish.");
                             success = true;
                         }
@@ -196,7 +195,7 @@ public class RtmpClient implements Runnable {
         AmfValue[] args = AmfValue.array(null, publishName, "live");
         RtmpMessage message = new RtmpMessageCommand("publish", TANSACTION_ID,
                 args);
-        rtmp.writeRtmpMessage(CHANNEL_RTMP_PUBLISH, streamId, 0, message);
+        rtmp.writeRtmpMessage(streamId, 0, message);
         if (!waitResponse()) {
             success = false;
         }
@@ -206,7 +205,7 @@ public class RtmpClient implements Runnable {
     public void closeStream(int streamId) throws IOException {
         AmfValue[] args = { new AmfValue(null) };
         RtmpMessage message = new RtmpMessageCommand("closeStream", 0, args);
-        rtmp.writeRtmpMessage(CHANNEL_RTMP_COMMAND, streamId, 0, message);
+        rtmp.writeRtmpMessage(streamId, 0, message);
         success = true;
         errorMsg = "";
         logger.debug("rtmp stream closed.");
@@ -239,7 +238,7 @@ public class RtmpClient implements Runnable {
         try {
             while (running) {
                 StreamPlayer player = (StreamPlayer) context
-                        .get(PUBLISH_PLAYER_KEY);
+                        .get(CONTEXT_KEY_PUBLISH_PLAYER);
                 if (player != null) {
                     player.play();
                 }
@@ -248,7 +247,7 @@ public class RtmpClient implements Runnable {
                 conn.flush();
             }
         } catch (EOFException e) {
-            Integer streamId = (Integer) context.get(PUBLISH_STREAM_ID_KEY);
+            Integer streamId = (Integer) context.get(CONTEXT_KEY_PUBLISH_STREAM_ID);
             if (streamId != null)
                 try {
                     closeStream(streamId);

@@ -2,15 +2,14 @@ package com.ams.server.handler.replication;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ams.io.network.Connection;
+import com.ams.media.IMsgPublisher;
 import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.RtmpException;
-import com.ams.protocol.rtmp.RtmpHeader;
 import com.ams.protocol.rtmp.amf.AmfException;
 import com.ams.protocol.rtmp.amf.AmfValue;
 import com.ams.protocol.rtmp.message.RtmpMessage;
@@ -65,12 +64,25 @@ public class ReplMasterHandler implements IProtocolHandler {
         case RtmpMessage.MESSAGE_AMF0_COMMAND:
             RtmpMessageCommand command = (RtmpMessageCommand) message;
             if ("subscribe".equals(command.getName())) {
-            	 AmfValue[] args = command.getArgs();
-                 String publishName = args[1].string();
-                 
-
-            	
-                logger.debug("received subscribe: {}", publishName);
+                AmfValue[] args = command.getArgs();
+                for (int i = 1; i < args.length; i++) {
+                    String publishName = args[i].string();
+                    logger.debug("received subscription from slave: {}", publishName);
+                    if (streamSubscribers.containsKey(publishName)) {
+                        logger.debug("alreay subscribed: {}", publishName);
+                        return;
+                    }
+                    StreamPublisher publisher = (StreamPublisher)PublisherManager.getPublisher(publishName);
+                    if (publisher != null) {
+                        NetStream stream = netConn.createStream();
+                        ReplStreamSubscriber subscriber = new ReplStreamSubscriber(publisher, stream);
+                        publisher.addSubscriber(subscriber);
+                        streamSubscribers.put(publishName, subscriber);
+                        logger.debug("start publish to slave: {}");
+                    } else {
+                        logger.debug("not found subscription: {}", publishName);
+                    }
+                }
             }
         }
         
@@ -78,20 +90,6 @@ public class ReplMasterHandler implements IProtocolHandler {
     
     private void send() {
         try {
-            // publish stream
-            for (String publishName : PublisherManager.getAllPublishName()) {
-                StreamPublisher publisher = (StreamPublisher) PublisherManager.getPublisher(publishName);
-                // create a subscriber for a new publish
-                if (!streamSubscribers.containsKey(publishName)) {
-                    // TODO check if we should subscribe this publish
-                    NetStream stream = netConn.createStream();
-                    ReplStreamSubscriber subscriber = new ReplStreamSubscriber(publisher, stream);
-                    // subscribe this stream
-                    publisher.addSubscriber(subscriber);
-                    streamSubscribers.put(publishName, subscriber);
-                }
-            }
-
             // try to close stream
             for (String publishName : streamSubscribers.keySet()) {
                 ReplStreamSubscriber subscriber = streamSubscribers.get(publishName);
@@ -100,7 +98,6 @@ public class ReplMasterHandler implements IProtocolHandler {
                     streamSubscribers.remove(publishName);
                 }
             }
-
             Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();

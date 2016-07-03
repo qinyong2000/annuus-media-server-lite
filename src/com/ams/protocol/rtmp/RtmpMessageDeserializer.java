@@ -46,20 +46,19 @@ public class RtmpMessageDeserializer {
         }
         int remain = chunkData.getRemainBytes();
         if (remain > readChunkSize) {
-            // continue to read
-            chunkData.read(in, readChunkSize);
+            // continue to read a chunk
+            chunkData.readChunk(in, readChunkSize);
             return null;
         }
-        chunkData.read(in, remain);
-        // got a chunk data
+        chunkData.readChunk(in, remain);
+        // read all chunk data of one message
         chunkDataMap.remove(chunkStreamId);
-        return parseChunkData(chunkData);
+        return parseChunkData(header, chunkData);
     }
 
-    private RtmpMessage parseChunkData(RtmpChunkData chunk) throws IOException,
+    private RtmpMessage parseChunkData(RtmpHeader header, RtmpChunkData chunkData) throws IOException,
             AmfException, RtmpException {
-        RtmpHeader header = chunk.getHeader();
-        DataBuffer data = chunk.getChunkData();
+        DataBuffer data = chunkData.getData();
         ByteBufferInputStream bis = new ByteBufferInputStream(data);
         RtmpMessage message = null;
         switch (header.getType()) {

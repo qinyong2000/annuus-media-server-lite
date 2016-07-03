@@ -350,7 +350,7 @@ public class RtmpHandShake {
     private ByteBufferOutputStream out;
 
     public RtmpHandShake(RtmpConnection rtmp) {
-        this.conn = rtmp.getConnector();
+        this.conn = rtmp.getConnection();
         this.in = conn.getInputStream();
         this.out = conn.getOutputStream();
         try {
