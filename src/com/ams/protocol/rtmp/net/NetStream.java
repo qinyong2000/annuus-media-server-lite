@@ -42,7 +42,8 @@ public class NetStream {
     public void writeStatusMessage(String status, AmfValue info)
             throws IOException {
         AmfValue value = AmfValue.newObject();
-        value.put("level", "status").put("code", status);
+        value.put("level", "status")
+             .put("code", status);
         Map<String, AmfValue> v = info.object();
         for (String key : v.keySet()) {
             value.put(key, v.get(key).toString());
@@ -53,8 +54,9 @@ public class NetStream {
 
     public void writeErrorMessage(String msg) throws IOException {
         AmfValue value = AmfValue.newObject();
-        value.put("level", "error").put("code", "NetStream.Error")
-                .put("details", msg);
+        value.put("level", "error")
+             .put("code", "NetStream.Error")
+             .put("details", msg);
         writeMessage(new RtmpMessageCommand("onStatus", transactionId,
                 AmfValue.array(null, value)));
     }

@@ -46,8 +46,8 @@ public class RtmpClient implements Runnable {
     private boolean running = true;
 
     public RtmpClient(String host, int port) throws IOException {
-        conn = new NetworkClientConnection();
-        conn.connect(new InetSocketAddress(host, port));
+        conn = new NetworkClientConnection(new InetSocketAddress(host, port));
+        conn.connect();
         rtmp = new RtmpConnection(conn);
         handshake = new RtmpHandShake(rtmp);
         if (!handShake())
