@@ -24,8 +24,8 @@ public class Dispatcher extends NetworkHandler {
 
     public Dispatcher() throws IOException {
         super("dispatcher");
-        selector = Selector.open();
-        registerConnectionQueue = new ConcurrentLinkedQueue<NetworkConnection>();
+        this.selector = Selector.open();
+        this.registerConnectionQueue = new ConcurrentLinkedQueue<NetworkConnection>();
     }
 
     public Dispatcher(IProtocolService protocolService) throws IOException {

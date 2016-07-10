@@ -43,7 +43,7 @@ public class ObjectCache<T> {
 
     private class CacheCollector extends Thread {
         public CacheCollector() {
-            super();
+            super("CacheCollector");
             try {
                 setDaemon(true);
             } catch (Exception e) {

@@ -24,7 +24,7 @@ public class Acceptor extends NetworkHandler {
     private IProtocolService protocolService;
     
     public Acceptor(SocketAddress host, int dispatcherSize, IProtocolService protocolService) {
-        super("acceptor");
+        super("acceptor:" + host.toString());
         this.listenAddress = host;
         this.dispatcherSize = dispatcherSize;
         this.protocolService = protocolService;

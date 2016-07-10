@@ -25,7 +25,7 @@ public class ReplSlaveService {
         }
     }
     
-    public void addSubscription(String name) {
+    public synchronized void addSubscription(String name) {
         if (handler != null) {
             handler.addSubscription(name);
         }
