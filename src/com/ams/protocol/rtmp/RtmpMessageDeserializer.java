@@ -111,8 +111,7 @@ public class RtmpMessageDeserializer {
                         break;
                     }
                 }
-
-                AmfValue[] args = new AmfValue[argArray.size()];
+                AmfValue[] args = new AmfValue[argArray.size() - 1];
                 argArray.toArray(args);
                 message = new RtmpMessageCommand(name, transactionId, args);
             } // end case MESSAGE_AMF0_COMMAND

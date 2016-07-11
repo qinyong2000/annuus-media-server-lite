@@ -65,7 +65,7 @@ public class ReplMasterHandler implements IProtocolHandler {
             RtmpMessageCommand command = (RtmpMessageCommand) message;
             if ("subscribe".equals(command.getName())) {
                 AmfValue[] args = command.getArgs();
-                for (int i = 1; i < args.length; i++) {
+                for (int i = 0; i < args.length; i++) {
                     String publishName = args[i].string();
                     logger.debug("received subscription from slave: {}", publishName);
                     if (streamSubscribers.containsKey(publishName)) {

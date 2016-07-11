@@ -59,8 +59,7 @@ public class RtmpMessageSerializer {
                     new DataOutputStream(bos));
 
             String name = ((RtmpMessageCommand) message).getName();
-            int transactionId = ((RtmpMessageCommand) message)
-                    .getTransactionId();
+            int transactionId = ((RtmpMessageCommand) message).getTransactionId();
             AmfValue[] args = ((RtmpMessageCommand) message).getArgs();
             serializer.write(new AmfValue(name));
             serializer.write(new AmfValue(transactionId));
@@ -74,8 +73,7 @@ public class RtmpMessageSerializer {
             Amf0Serializer serializer = new Amf0Serializer(
                     new DataOutputStream(bos));
             String name = ((RtmpMessageCommand) message).getName();
-            int transactionId = ((RtmpMessageCommand) message)
-                    .getTransactionId();
+            int transactionId = ((RtmpMessageCommand) message).getTransactionId();
             AmfValue[] args = ((RtmpMessageCommand) message).getArgs();
             serializer.write(new AmfValue(name));
             serializer.write(new AmfValue(transactionId));

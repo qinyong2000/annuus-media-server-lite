@@ -146,9 +146,7 @@ public class RtmpClient implements Runnable {
             public void onStatus(AmfValue[] status) {
             }
         };
-        AmfValue[] args = { new AmfValue(null) };
-        RtmpMessage message = new RtmpMessageCommand("createStream",
-                TANSACTION_ID, args);
+        RtmpMessage message = new RtmpMessageCommand("createStream", TANSACTION_ID, null);
         rtmp.writeRtmpMessage(0, 0, message);
         if (!waitResponse()) {
             context.put(CONTEXT_KEY_CREATE_STREAM_ID, -1);
@@ -192,9 +190,7 @@ public class RtmpClient implements Runnable {
                 }
             }
         };
-        AmfValue[] args = AmfValue.array(null, publishName, "live");
-        RtmpMessage message = new RtmpMessageCommand("publish", TANSACTION_ID,
-                args);
+        RtmpMessage message = new RtmpMessageCommand("publish", TANSACTION_ID, null, publishName, "live");
         rtmp.writeRtmpMessage(streamId, 0, message);
         if (!waitResponse()) {
             success = false;
@@ -203,8 +199,7 @@ public class RtmpClient implements Runnable {
     }
 
     public void closeStream(int streamId) throws IOException {
-        AmfValue[] args = { new AmfValue(null) };
-        RtmpMessage message = new RtmpMessageCommand("closeStream", 0, args);
+        RtmpMessage message = new RtmpMessageCommand("closeStream", 0, null);
         rtmp.writeRtmpMessage(streamId, 0, message);
         success = true;
         errorMsg = "";

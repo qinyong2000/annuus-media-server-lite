@@ -106,30 +106,30 @@ public class NetConnection {
         rtmp.writeProtocolControlMessage(new RtmpMessageUserControl(
                 RtmpMessageUserControl.EVT_STREAM_BEGIN, header.getStreamId()));
 
-        AmfValue value0 = AmfValue.newObject();
-        value0.put("capabilities", 31).put("fmsver", "AMS/0,1,0,0")
-                .put("mode", 1);
+        AmfValue properties = AmfValue.newObject();
+        properties.put("capabilities", 31)
+                  .put("fmsver", "AMS/0,1,0,0")
+                  .put("mode", 1);
 
-        AmfValue value = AmfValue.newObject();
-        value.put("level", "status")
-                .put("code", "NetConnection.Connect.Success")
-                .put("description", "Connection succeeded.");
+        AmfValue info = AmfValue.newObject();
+        info.put("level", "status")
+            .put("code", "NetConnection.Connect.Success")
+            .put("description", "Connection succeeded.");
 
         AmfValue objectEncoding = obj.get("objectEncoding");
         if (objectEncoding != null) {
-            value.put("objectEncoding", objectEncoding);
+            info.put("objectEncoding", objectEncoding);
         }
 
         rtmp.writeRtmpMessage(header.getChunkStreamId(), 0, 0,
-                new RtmpMessageCommand("_result", command.getTransactionId(),
-                        AmfValue.array(value0, value)));
+                new RtmpMessageCommand("_result", command.getTransactionId(), 
+                        AmfValue.array(properties, info)));
 
     }
 
     private void onGetStreamLength(RtmpHeader header, RtmpMessageCommand command)
             throws IOException, NetConnectionException, FlvException {
-        AmfValue[] args = command.getArgs();
-        String streamName = args[1].string();
+        String streamName = command.getCommandParameters(0, "").string();
         // rtmp.writeRtmpMessage(header.getChunkStreamId(), 0, 0,
         // new RtmpMessageCommand("_result", command.getTransactionId(),
         // AmfValue.array(null, 140361)));
@@ -137,10 +137,9 @@ public class NetConnection {
 
     private void onPlay(RtmpHeader header, RtmpMessageCommand command)
             throws IOException, NetConnectionException, FlvException {
-        AmfValue[] args = command.getArgs();
-        String streamName = args[1].string();
-        int start = (args.length > 2) ? args[2].integer() : -2;
-        int duration = (args.length > 3) ? args[3].integer() : -1;
+        String streamName = command.getCommandParameters(0, "").string();
+        int start = command.getCommandParameters(1, -2).integer();
+        int duration = command.getCommandParameters(2, -1).integer();
         NetStream stream = streams.get(header.getStreamId());
         if (stream == null) {
             streamError(header.getChunkStreamId(), header.getStreamId(),
@@ -155,22 +154,17 @@ public class NetConnection {
 
     private void onPlay2(RtmpHeader header, RtmpMessageCommand command)
             throws IOException, NetConnectionException, FlvException {
-        AmfValue[] args = command.getArgs();
-        int startTime = args[0].integer();
-        String oldStreamName = args[1].string();
-        String streamName = args[2].string();
-        int duration = (args.length > 3) ? args[3].integer() : -1;
-        String transition = (args.length > 4) ? args[4].string() : "switch"; // switch
-                                                                             // or
-                                                                             // swap
-
+        int startTime = command.getCommandParameters(0, -1).integer();
+        String oldStreamName = command.getCommandParameters(1, "").string();
+        String streamName = command.getCommandParameters(2, "").string();
+        int duration = command.getCommandParameters(3, -1).integer();
+        String transition = command.getCommandParameters(4, "switch").string(); // switch or swap
         // TODO
     }
 
     private void onSeek(RtmpHeader header, RtmpMessageCommand command)
             throws IOException, NetConnectionException, FlvException {
-        AmfValue[] args = command.getArgs();
-        int offset = args[1].integer();
+        int offset = command.getCommandParameters(0, -1).integer();
         NetStream stream = streams.get(header.getStreamId());
         if (stream == null) {
             streamError(header.getChunkStreamId(), header.getStreamId(),
@@ -184,9 +178,8 @@ public class NetConnection {
 
     private void onPause(RtmpHeader header, RtmpMessageCommand command)
             throws IOException, NetConnectionException, FlvException {
-        AmfValue[] args = command.getArgs();
-        boolean pause = args[1].bool();
-        int time = args[2].integer();
+        boolean pause = command.getCommandParameters(0, false).bool();
+        int time = command.getCommandParameters(1, -1).integer();
         NetStream stream = streams.get(header.getStreamId());
         if (stream == null) {
             streamError(header.getChunkStreamId(), header.getStreamId(),
@@ -200,8 +193,7 @@ public class NetConnection {
 
     private void onPublish(RtmpHeader header, RtmpMessageCommand command)
             throws IOException, NetConnectionException {
-        AmfValue[] args = command.getArgs();
-        String publishName = args[1].string();
+        String publishName = command.getCommandParameters(0, "").string();
         if (PublisherManager.getPublisher(publishName) != null) {
             streamError(header.getChunkStreamId(), header.getStreamId(),
                     command.getTransactionId(), "The publish '" + publishName
@@ -209,7 +201,7 @@ public class NetConnection {
             return;
         }
 
-        String type = (args.length > 2) ? args[2].string() : null;
+        String type = command.getCommandParameters(1, "").string();
         NetStream stream = streams.get(header.getStreamId());
         if (stream == null) {
             streamError(header.getChunkStreamId(), header.getStreamId(),
@@ -224,8 +216,7 @@ public class NetConnection {
 
     private void onReceiveAudio(RtmpHeader header, RtmpMessageCommand command)
             throws IOException {
-        AmfValue[] args = command.getArgs();
-        boolean flag = args[1].bool();
+        boolean flag = command.getCommandParameters(0, false).bool();
         NetStream stream = streams.get(header.getStreamId());
         if (stream == null) {
             streamError(header.getChunkStreamId(), header.getStreamId(),
@@ -238,8 +229,7 @@ public class NetConnection {
 
     private void onReceiveVideo(RtmpHeader header, RtmpMessageCommand command)
             throws IOException {
-        AmfValue[] args = command.getArgs();
-        boolean flag = args[1].bool();
+        boolean flag = command.getCommandParameters(0, false).bool();
         NetStream stream = streams.get(header.getStreamId());
         if (stream == null) {
             streamError(header.getChunkStreamId(), header.getStreamId(),
@@ -254,15 +244,12 @@ public class NetConnection {
             throws IOException {
         NetStream stream = createStream();
         rtmp.writeRtmpMessage(header.getChunkStreamId(), 0, 0,
-                new RtmpMessageCommand("_result", command.getTransactionId(),
-                        AmfValue.array(null, stream.getStreamId())));
-
+                new RtmpMessageCommand("_result", command.getTransactionId(), null, stream.getStreamId()));
     }
 
     private void onDeleteStream(RtmpHeader header, RtmpMessageCommand command)
             throws IOException, NetConnectionException {
-        AmfValue[] args = command.getArgs();
-        int streamId = args[1].integer();
+        int streamId = command.getCommandParameters(0, -1).integer();
         NetStream stream = streams.get(streamId);
         if (stream == null) {
             streamError(header.getChunkStreamId(), header.getStreamId(),
@@ -297,8 +284,7 @@ public class NetConnection {
                 chunkStreamId,
                 streamId,
                 0,
-                new RtmpMessageCommand("onStatus", transactionId, AmfValue
-                        .array(null, value)));
+                new RtmpMessageCommand("onStatus", transactionId, null, value));
     }
 
     public void netConnectionError(int chunkStreamId, int streamId,

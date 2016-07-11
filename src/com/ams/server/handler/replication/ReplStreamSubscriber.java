@@ -31,16 +31,14 @@ class ReplStreamSubscriber extends StreamSubscriber {
 
     protected void sendPublishCommand() {
         try {
-            AmfValue[] args = AmfValue.array(null, publisher.getPublishName(), "live");
-            RtmpMessage message = new RtmpMessageCommand("publish", 1, args);
+            RtmpMessage message = new RtmpMessageCommand("publish", 1, null, publisher.getPublishName(), "live");
             stream.writeMessage(message);
         } catch (IOException e) {
         }
     }
 
     protected void sendCloseStreamCommand() throws IOException {
-        AmfValue[] args = { new AmfValue(null) };
-        RtmpMessage message = new RtmpMessageCommand("closeStream", 0, args);
+        RtmpMessage message = new RtmpMessageCommand("closeStream", 0, null);
         stream.writeMessage(message);
     }
 

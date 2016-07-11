@@ -128,9 +128,9 @@ public class ReplSlaveHandler implements IProtocolHandler {
         }
     }
     private void send() {
-        
+        // TODO
         try {
-            AmfValue[] args = AmfValue.array(null, publishName);
+            AmfValue[] args = null;
             RtmpMessage message = new RtmpMessageCommand("subscribe", 0, args);
             rtmp.writeRtmpMessage(0, 0, message);
         } catch (IOException e) {
