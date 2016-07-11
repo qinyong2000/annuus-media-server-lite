@@ -2,7 +2,6 @@ package com.ams.io.network;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 
@@ -144,19 +143,5 @@ public class NetworkConnection extends Connection {
             } catch (IOException e) {
             }
         }
-    }
-
-    public SocketAddress getLocalSocketAddress() {
-        if (channel == null) return null;
-        return channel.socket().getLocalSocketAddress();
-    }
-
-    public SocketAddress getRemoteSocketAddress() {
-        if (channel == null) return null;
-        return channel.socket().getRemoteSocketAddress();
-    }
-    
-    public String toString() {
-        return "connection:" + getLocalSocketAddress();
     }
 }

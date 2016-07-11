@@ -9,7 +9,7 @@ import com.ams.media.IMsgPublisher;
 import com.ams.util.ObjectCache;
 
 public class PublisherManager {
-    final private static Logger logger = LoggerFactory.getLogger(PublisherManager.class);
+    private static Logger logger = LoggerFactory.getLogger(PublisherManager.class);
 
     private static int DEFAULT_EXPIRE_TIME = 24 * 60 * 60;
 

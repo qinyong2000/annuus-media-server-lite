@@ -15,8 +15,8 @@ import com.ams.server.handler.IProtocolHandler;
 import com.ams.server.handler.IProtocolService;
 import com.ams.server.handler.ProtocolHandlerExecutor;
 import com.ams.server.handler.http.HttpService;
-import com.ams.server.handler.replication.ReplSlaveHandler;
 import com.ams.server.handler.replication.ReplMasterService;
+import com.ams.server.handler.replication.ReplSlaveService;
 import com.ams.server.handler.rtmp.RtmpService;
 
 public class Server {
@@ -96,8 +96,7 @@ public class Server {
         }
 
         if (config.getReplicationMasterHost() != null) {
-            replicationSlaveHandler = new ReplSlaveHandler(config.getReplicationMasterHost(), config.getReplicationMasterPort());
-            executor.execute(replicationSlaveHandler);
+            ReplSlaveService.getInstance().invoke(config.getReplicationMasterHost(), config.getReplicationMasterPort());
         }
     }
 

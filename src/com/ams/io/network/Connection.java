@@ -170,10 +170,6 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         return true;
     }
 
-    public int getReadTimeout() {
-        return readTimeout;
-    }
-
     public void setReadTimeout(int timeout) {
         this.readTimeout = timeout;
     }

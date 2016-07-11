@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ams.io.network.Connection;
-import com.ams.media.IMsgPublisher;
 import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.RtmpException;
 import com.ams.protocol.rtmp.amf.AmfException;
@@ -67,9 +66,9 @@ public class ReplMasterHandler implements IProtocolHandler {
                 AmfValue[] args = command.getArgs();
                 for (int i = 0; i < args.length; i++) {
                     String publishName = args[i].string();
-                    logger.debug("received subscription from slave: {}", publishName);
+                    logger.debug("received subscribe request from slave: {}", publishName);
                     if (streamSubscribers.containsKey(publishName)) {
-                        logger.debug("alreay subscribed: {}", publishName);
+                        logger.debug("alreay in subscribing: {}", publishName);
                         return;
                     }
                     StreamPublisher publisher = (StreamPublisher)PublisherManager.getPublisher(publishName);
@@ -80,7 +79,7 @@ public class ReplMasterHandler implements IProtocolHandler {
                         streamSubscribers.put(publishName, subscriber);
                         logger.debug("start publish to slave: {}");
                     } else {
-                        logger.debug("not found subscription: {}", publishName);
+                        logger.debug("not found publish name for subscibe request: {}", publishName);
                     }
                 }
             }

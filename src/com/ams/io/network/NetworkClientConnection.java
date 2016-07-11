@@ -8,11 +8,19 @@ import java.nio.channels.SocketChannel;
 
 public class NetworkClientConnection extends NetworkConnection {
     protected static Dispatcher dispatcher = null;
-
-    public NetworkClientConnection() {
+    protected int connectTimeout = DEFAULT_TIMEOUT_MS;
+    protected InetSocketAddress remote;
+    
+	public NetworkClientConnection(InetSocketAddress remote) {
         super();
+        this.remote = remote;
     }
 
+    public NetworkClientConnection(String host, int port) {
+        super();
+        this.remote = new InetSocketAddress(host, port);
+    }
+    
     protected Dispatcher getDispatcher() throws IOException {
         if (dispatcher == null) {
             synchronized (this) {
@@ -23,7 +31,7 @@ public class NetworkClientConnection extends NetworkConnection {
         return dispatcher;
     }
     
-    public void connect(SocketAddress remote, ConnectionListener listener) throws IOException {
+    public void connect(ConnectionListener listener) throws IOException {
         addListener(listener);
         if (channel == null) {
             channel = SocketChannel.open();
@@ -37,7 +45,7 @@ public class NetworkClientConnection extends NetworkConnection {
         channel.connect(remote);
     }
     
-    public void connect(SocketAddress remote) throws IOException {
+    public void connect() throws IOException {
         ConnectionListener listener = new ConnectionListener() {
             public void connectionEstablished(Connection conn) {
                 synchronized (conn) {
@@ -51,8 +59,8 @@ public class NetworkClientConnection extends NetworkConnection {
         
         try {
             synchronized (this) {
-                connect(remote, listener);
-                wait(readTimeout);
+                connect(listener);
+                wait(connectTimeout);
             }
         } catch (Exception e) {
             channel = null;
@@ -61,10 +69,18 @@ public class NetworkClientConnection extends NetworkConnection {
             removeListener(listener);
         }
         long now = System.currentTimeMillis();
-        if (now - start >= readTimeout) {
+        if (now - start >= connectTimeout) {
             channel = null;
             throw new IOException("connect time out");
         }
+    }
+    
+    public void setConnectTimeout(int timeout) {
+        this.connectTimeout = timeout;
+    }
+
+    public InetSocketAddress getRemoteAddress() {
+        return remote;
     }
     
 }

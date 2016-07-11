@@ -89,7 +89,7 @@ public class ByteBufferAllocator implements IByteBufferAllocator {
 		}
 
 		public ByteBufferCollector() {
-			super();
+			super("ByteBufferCollector");
 			try {
 				setDaemon(true);
 			} catch (Exception e) {
