@@ -51,8 +51,7 @@ public class NetConnection {
         publisher.publish(message.toMediaMessage(header.getTimestamp()));
 
         if (publisher.isPing()) {
-            rtmp.writeProtocolControlMessage(new RtmpMessageAck(publisher
-                    .getPingBytes()));
+            rtmp.writeProtocolControlMessage(new RtmpMessageAck(publisher.getPingBytes()));
         }
     }
 
@@ -135,7 +134,7 @@ public class NetConnection {
     private void onGetStreamLength(RtmpHeader header, RtmpMessageCommand command)
             throws IOException {
         String streamName = command.getCommandParameter(0, "").string();
-        // writeResult(header, command, null, 0);
+        // writeCommandResult(header, command, null, 0);
     }
 
     private void onPlay(RtmpHeader header, RtmpMessageCommand command)
@@ -143,6 +142,7 @@ public class NetConnection {
         String streamName = command.getCommandParameter(0, "").string();
         int start = command.getCommandParameter(1, -2).integer();
         int duration = command.getCommandParameter(2, -1).integer();
+        boolean reset = command.getCommandParameter(3, true).bool();
         NetStream stream = streams.get(header.getStreamId());
         if (stream == null) {
             writeStreamError(header, command, "Invalid 'Play' stream id " + header.getStreamId());
@@ -150,7 +150,7 @@ public class NetConnection {
         }
         stream.setTransactionId(command.getTransactionId());
         logger.debug("play stream: {}", streamName);
-        stream.play(context, streamName, start, duration);
+        stream.play(context, streamName, start, duration, reset);
     }
 
     private void onPlay2(RtmpHeader header, RtmpMessageCommand command) throws IOException {

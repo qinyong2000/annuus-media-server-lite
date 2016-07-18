@@ -21,6 +21,7 @@ import com.ams.protocol.rtmp.message.RtmpMessageChunkSize;
 import com.ams.protocol.rtmp.message.RtmpMessageCommand;
 import com.ams.protocol.rtmp.message.RtmpMessageData;
 import com.ams.protocol.rtmp.message.RtmpMessageUserControl;
+import com.ams.server.handler.replication.ReplSlaveService;
 
 public class NetStream {
     private Logger logger = LoggerFactory.getLogger(NetStream.class);
@@ -42,8 +43,7 @@ public class NetStream {
         rtmp.writeRtmpMessage(streamId, timeStamp, message);
     }
 
-    public void writeStatusMessage(String status, AmfValue info)
-            throws IOException {
+    public void writeStatusMessage(String status, AmfValue info) throws IOException {
         AmfValue value = AmfValue.newObject();
         value.put("level", "status")
              .put("code", status);
@@ -132,7 +132,8 @@ public class NetStream {
                 "NetStream.Seek.Notify",
                 AmfValue.newObject()
                         .put("description", "Seeking " + time + ".")
-                        .put("details", playStreamName).put("clientId", streamId));
+                        .put("details", playStreamName)
+                        .put("clientId", streamId));
 
         writeStatusMessage(
                 "NetStream.Play.Start",
@@ -142,7 +143,7 @@ public class NetStream {
 
     }
 
-    public void play(NetContext context, String streamName, int start, int len)
+    public void play(NetContext context, String streamName, int start, int duration, boolean reset)
             throws IOException {
         if (player != null) {
             writeErrorMessage("This channel is already playing");
@@ -153,20 +154,21 @@ public class NetStream {
         // set chunk size
         rtmp.writeProtocolControlMessage(new RtmpMessageChunkSize(1024));
 
-        // NetStream.Play.Reset
-        writeStatusMessage(
-                "NetStream.Play.Reset",
-                AmfValue.newObject()
-                        .put("description", "Resetting " + streamName + ".")
-                        .put("details", streamName)
-                        .put("clientId", streamId));
-
         // clear
         rtmp.writeProtocolControlMessage(new RtmpMessageUserControl(
                 RtmpMessageUserControl.EVT_STREAM_IS_RECORDED, streamId));
         rtmp.writeProtocolControlMessage(new RtmpMessageUserControl(
                 RtmpMessageUserControl.EVT_STREAM_BEGIN, streamId));
 
+        // NetStream.Play.Reset
+        if (reset) {
+            writeStatusMessage(
+                    "NetStream.Play.Reset",
+                    AmfValue.newObject()
+                            .put("description", "Resetting " + streamName + ".")
+                            .put("details", streamName)
+                            .put("clientId", streamId));
+        }
         // NetStream.Play.Start
         writeStatusMessage(
                 "NetStream.Play.Start",
@@ -181,7 +183,14 @@ public class NetStream {
             String publishName = context.getPublishName(app, streamName);
             StreamPublisher publisher = (StreamPublisher) PublisherManager.getInstance().getPublisher(publishName);
             if (publisher == null) {
-                writeErrorMessage("Unknown shared stream '" + streamName + "'");
+                // NetStream.Play.StreamNotFound
+                writeStatusMessage(
+                        "NetStream.Play.StreamNotFound",
+                        AmfValue.newObject()
+                                .put("description", "Live stream " + streamName + "is not found.")
+                                .put("clientId", streamId));
+                // try to subscribe live stream from matser
+                ReplSlaveService.getInstance().addSubscription(streamName);
                 return;
             }
             StreamSubscriber subscriber = new StreamSubscriber(publisher, this);
@@ -195,22 +204,11 @@ public class NetStream {
             if (publisher != null) {
                 StreamSubscriber subscriber = new StreamSubscriber(publisher, this);
                 publisher.addSubscriber(subscriber);
+                break;
             } else {
-                String tokens[] = streamName.split(":");
-                String type = "";
-                String file = streamName;
-                if (tokens.length >= 2) {
-                    type = tokens[0];
-                    file = tokens[1];
-                }
-                String path = context.getRealPath(app, file, type);
-                player = createPlayer(type, path);
-                if (player != null) {
-                    player.seek(0);
-                }
+                start = 0;
             }
         }
-            break;
         default: // >= 0
             String tokens[] = streamName.split(":");
             String type = "";
@@ -223,6 +221,13 @@ public class NetStream {
             player = createPlayer(type, path);
             if (player != null) {
                 player.seek(start);
+            } else {
+                // NetStream.Play.StreamNotFound
+                writeStatusMessage(
+                        "NetStream.Play.StreamNotFound",
+                        AmfValue.newObject()
+                                .put("description", "Stream " + streamName + "is not found.")
+                                .put("clientId", streamId));
             }
         }
 
@@ -268,7 +273,8 @@ public class NetStream {
 
         // NetStream.Play.Complete
         writeDataMessage(AmfValue.array("onPlayStatus", AmfValue.newObject()
-                .put("level", "status").put("code", "NetStream.Play.Complete")));
+                .put("level", "status")
+                .put("code", "NetStream.Play.Complete")));
 
         // NetStream.Play.Stop
         writeStatusMessage(
@@ -298,16 +304,14 @@ public class NetStream {
         if ("record".equals(type)) {
             String file = context.getRealPath(app, streamName, "");
             try {
-                RandomAccessFileWriter writer = new RandomAccessFileWriter(
-                        file, false);
+                RandomAccessFileWriter writer = new RandomAccessFileWriter(file, false);
                 publisher.setRecorder(new FlvSerializer(writer));
             } catch (IOException e) {
                 logger.debug(e.getMessage());
             }
         } else if ("append".equals(type)) {
             String file = context.getRealPath(app, streamName, "");
-            RandomAccessFileWriter writer = new RandomAccessFileWriter(file,
-                    true);
+            RandomAccessFileWriter writer = new RandomAccessFileWriter(file, true);
             publisher.setRecorder(new FlvSerializer(writer));
         } else if ("live".equals(type)) {
             // nothing to do

@@ -109,7 +109,7 @@ public class Dispatcher extends NetworkHandler {
                 }
 
             } catch (Exception e) {
-                logger.debug("read channel error: {}, {}", connection, e.getMessage());
+                //logger.debug("read channel error: {}, {}", connection, e.getMessage());
                 key.cancel();
                 key.attach(null);
                 connection.close();

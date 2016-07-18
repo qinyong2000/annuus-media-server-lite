@@ -44,7 +44,7 @@ public class RtmpClient implements Runnable {
     public RtmpClient(String host, int port) {
         conn = new NetworkClientConnection(new InetSocketAddress(host, port));
         rtmp = new RtmpConnection(conn);
-        Thread t = new Thread(this, "rtmp client");
+        Thread t = new Thread(this, "RtmpClient");
         t.start();
     }
 
@@ -108,6 +108,7 @@ public class RtmpClient implements Runnable {
                 RtmpHandShake handshake = new RtmpHandShake(rtmp);
                 if (!doHandShake(handshake)) {
                     listener.onError("Handshake error");
+                    return;
                 }
                 pipeLine.offer(eventListener);
                 AmfValue[] args = { AmfValue.newObject().put("app", app) };
@@ -216,9 +217,9 @@ public class RtmpClient implements Runnable {
     public void waitForEnd() {
         synchronized(this) {
             try {
-	            wait();
+                wait();
             } catch (InterruptedException e) {
-	            e.printStackTrace();
+                e.printStackTrace();
             }
         }
     }
