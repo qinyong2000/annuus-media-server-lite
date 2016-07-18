@@ -7,8 +7,8 @@ public class FlvException extends Exception {
         super();
     }
 
-    public FlvException(String arg0) {
-        super(arg0);
+    public FlvException(String message) {
+        super(message);
     }
 
 }

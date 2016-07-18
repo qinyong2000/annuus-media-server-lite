@@ -36,8 +36,7 @@ public class RtmpMessageDeserializer {
         this.chunkDataMap = new HashMap<Integer, RtmpChunkData>();
     }
 
-    public RtmpMessage read(RtmpHeader header) throws IOException,
-            AmfException, RtmpException {
+    public RtmpMessage read(RtmpHeader header) throws IOException, RtmpException {
         int chunkStreamId = header.getChunkStreamId();
         RtmpChunkData chunkData = chunkDataMap.get(chunkStreamId);
         if (chunkData == null) {
@@ -53,11 +52,16 @@ public class RtmpMessageDeserializer {
         chunkData.readChunk(in, remain);
         // read all chunk data of one message
         chunkDataMap.remove(chunkStreamId);
-        return parseChunkData(header, chunkData);
+        RtmpMessage message = null;
+        try {
+            message = parseChunkData(header, chunkData);
+        } catch(AmfException e) {
+            throw new RtmpException("Invalid Rtmp Message");
+        }
+        return message;
     }
 
-    private RtmpMessage parseChunkData(RtmpHeader header, RtmpChunkData chunkData) throws IOException,
-            AmfException, RtmpException {
+    private RtmpMessage parseChunkData(RtmpHeader header, RtmpChunkData chunkData) throws IOException, AmfException {
         DataBuffer data = chunkData.getData();
         ByteBufferInputStream bis = new ByteBufferInputStream(data);
         RtmpMessage message = null;
@@ -111,7 +115,7 @@ public class RtmpMessageDeserializer {
                         break;
                     }
                 }
-                AmfValue[] args = new AmfValue[argArray.size() - 1];
+                AmfValue[] args = new AmfValue[argArray.size()];
                 argArray.toArray(args);
                 message = new RtmpMessageCommand(name, transactionId, args);
             } // end case MESSAGE_AMF0_COMMAND

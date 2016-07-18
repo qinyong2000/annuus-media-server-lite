@@ -6,12 +6,14 @@ import com.ams.io.buffer.DataBuffer;
 import com.ams.media.IMediaDeserializer;
 import com.ams.media.MediaMessage;
 import com.ams.protocol.rtmp.amf.AmfValue;
-import com.ams.protocol.rtmp.message.*;
+import com.ams.protocol.rtmp.message.RtmpMessageAudio;
+import com.ams.protocol.rtmp.message.RtmpMessageData;
+import com.ams.protocol.rtmp.message.RtmpMessageVideo;
 
 public class StreamPlayer {
     private static int BUFFER_TIME = 3 * 1000; // x seconds of buffering
     private NetStream stream = null;
-    private IMediaDeserializer deserializer;
+	private IMediaDeserializer deserializer;
     private long startTime = -1;
     private long bufferTime = BUFFER_TIME;
     private boolean pause = false;
@@ -107,4 +109,8 @@ public class StreamPlayer {
         this.bufferTime = bufferTime;
     }
 
+    public NetStream getStream() {
+        return stream;
+    }
+    
 }

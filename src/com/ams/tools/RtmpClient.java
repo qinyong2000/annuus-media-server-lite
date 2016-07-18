@@ -3,17 +3,18 @@ package com.ams.tools;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ams.io.network.Connection;
+import com.ams.io.network.ConnectionListener;
 import com.ams.io.network.NetworkClientConnection;
 import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.RtmpException;
 import com.ams.protocol.rtmp.RtmpHandShake;
-import com.ams.protocol.rtmp.amf.AmfException;
 import com.ams.protocol.rtmp.amf.AmfValue;
 import com.ams.protocol.rtmp.message.RtmpMessage;
 import com.ams.protocol.rtmp.message.RtmpMessageCommand;
@@ -21,44 +22,33 @@ import com.ams.protocol.rtmp.net.NetStream;
 import com.ams.protocol.rtmp.net.StreamPlayer;
 
 public class RtmpClient implements Runnable {
-    interface RtmpClientEventListener {
+    public interface ResponseListener<T> {
+        public void onSuccess(T response);
+        public void onError(String message);
+    }
+    private interface InternalEventListener {
         public void onResult(AmfValue[] result);
         public void onStatus(AmfValue[] status);
     }
     
     private static Logger logger = LoggerFactory.getLogger(RtmpClient.class);
-    private static int DEFAULT_TIMEOUT = 60 * 1000;
+    private final static int STREAM_ID = 0;
+    private final static int TIMESTAMP = 0;
+    private final static int TANSACTION_ID = 1;  // always 1
     private NetworkClientConnection conn;
     private RtmpConnection rtmp;
-    private RtmpHandShake handshake;
-
-    private final static int TANSACTION_ID = 1;  // always 1
-
-    private final static String CONTEXT_KEY_CREATE_STREAM_ID = "createStreamId";
-    private final static String CONTEXT_KEY_PUBLISH_STREAM_ID = "publishStreamId";
-    private final static String CONTEXT_KEY_PUBLISH_FILE_NAME = "publishFileName";
-    private final static String CONTEXT_KEY_PUBLISH_PLAYER = "publishPlayer";
-    private HashMap<String, Object> context = new HashMap<String, Object>();
-    private boolean success = false;
-    private String errorMsg = "";
-
-    private RtmpClientEventListener eventListener = null;
+    private LinkedBlockingQueue<InternalEventListener> pipeLine;
+    private StreamPlayer player = null;
     private boolean running = true;
 
-    public RtmpClient(String host, int port) throws IOException {
+    public RtmpClient(String host, int port) {
         conn = new NetworkClientConnection(new InetSocketAddress(host, port));
-        conn.connect();
         rtmp = new RtmpConnection(conn);
-        handshake = new RtmpHandShake(rtmp);
-        if (!handShake())
-            throw new IOException("handshake failed");
         Thread t = new Thread(this, "rtmp client");
-        // t.setDaemon(true);
         t.start();
     }
 
-    private void readResponse() throws IOException, AmfException, RtmpException {
-        // waiting for data arriving
+    private void readResponse() throws IOException, RtmpException {
         rtmp.readRtmpMessage();
 
         if (!rtmp.isRtmpMessageReady())
@@ -69,157 +59,22 @@ public class RtmpClient implements Runnable {
             return;
 
         RtmpMessageCommand msg = (RtmpMessageCommand) message;
-
+        InternalEventListener eventListener = pipeLine.peek();
         if (eventListener == null)
             return;
-
+        pipeLine.poll();
         if ("_result".equals(msg.getName())) {
             eventListener.onResult(msg.getArgs());
         } else if ("onStatus".equals(msg.getName())) {
             eventListener.onStatus(msg.getArgs());
         }
-        synchronized (this) {
-            notifyAll();
-        }
-
     }
 
-    private boolean waitResponse() {
-        boolean timeout = false;
-        long start = System.currentTimeMillis();
-        try {
-            synchronized (this) {
-                wait(DEFAULT_TIMEOUT);
-            }
-        } catch (InterruptedException e) {
-        }
-        long now = System.currentTimeMillis();
-        if (now - start >= DEFAULT_TIMEOUT) {
-            timeout = true;
-        }
-        if (timeout) {
-            errorMsg = "Waitint response timeout";
-        }
-        return !timeout;
-    }
-
-    public boolean connect(String app) throws IOException {
-        success = false;
-        errorMsg = "";
-        eventListener = new RtmpClientEventListener() {
-            public void onResult(AmfValue[] result) {
-                Map<String, AmfValue> r = result[1].object();
-                if ("NetConnection.Connect.Success".equals(r.get("code")
-                        .string())) {
-                    logger.debug("rtmp connected.");
-                    success = true;
-                }
-            }
-
-            public void onStatus(AmfValue[] status) {
-                Map<String, AmfValue> r = status[1].object();
-                if ("NetConnection.Error".equals(r.get("code").string())) {
-                    success = false;
-                    errorMsg = r.get("details").string();
-                }
-            }
-        };
-        AmfValue[] args = { AmfValue.newObject().put("app", app) };
-        RtmpMessage message = new RtmpMessageCommand("connect", TANSACTION_ID, args);
-        rtmp.writeRtmpMessage(0, 0, message);
-        if (!waitResponse()) {
-            success = false;
-        }
-        return success;
-    }
-
-    public int createStream() throws IOException {
-        context.put(CONTEXT_KEY_CREATE_STREAM_ID, -1);
-        errorMsg = "";
-        eventListener = new RtmpClientEventListener() {
-            public void onResult(AmfValue[] result) {
-                int streamId = result[1].integer();
-                context.put(CONTEXT_KEY_CREATE_STREAM_ID, streamId);
-                logger.debug("rtmp stream created.");
-            }
-
-            public void onStatus(AmfValue[] status) {
-            }
-        };
-        RtmpMessage message = new RtmpMessageCommand("createStream", TANSACTION_ID, null);
-        rtmp.writeRtmpMessage(0, 0, message);
-        if (!waitResponse()) {
-            context.put(CONTEXT_KEY_CREATE_STREAM_ID, -1);
-        }
-        return (Integer) context.get(CONTEXT_KEY_CREATE_STREAM_ID);
-    }
-
-    public boolean publish(int streamId, String publishName, String fileName)
-            throws IOException {
-        success = false;
-        errorMsg = "";
-
-        context.put(CONTEXT_KEY_PUBLISH_STREAM_ID, streamId);
-        context.put(CONTEXT_KEY_PUBLISH_FILE_NAME, fileName);
-        eventListener = new RtmpClientEventListener() {
-            public void onResult(AmfValue[] result) {
-            }
-
-            public void onStatus(AmfValue[] status) {
-                Map<String, AmfValue> result = status[1].object();
-                String level = result.get("level").string();
-                if ("status".equals(level)) {
-                    int streamId = (Integer) context.get(CONTEXT_KEY_PUBLISH_STREAM_ID);
-                    String fileName = (String) context
-                            .get(CONTEXT_KEY_PUBLISH_FILE_NAME);
-                    NetStream stream = new NetStream(rtmp, streamId);
-                    try {
-                        StreamPlayer player = stream.createPlayer(null,
-                                fileName);
-                        if (player != null) {
-                            player.seek(0);
-                            context.put(CONTEXT_KEY_PUBLISH_PLAYER, player);
-                            logger.debug("rtmp stream start to publish.");
-                            success = true;
-                        }
-                    } catch (IOException e) {
-                        logger.debug(e.getMessage());
-                    }
-                } else {
-                    errorMsg = result.get("details").string();
-                }
-            }
-        };
-        RtmpMessage message = new RtmpMessageCommand("publish", TANSACTION_ID, null, publishName, "live");
-        rtmp.writeRtmpMessage(streamId, 0, message);
-        if (!waitResponse()) {
-            success = false;
-        }
-        return success;
-    }
-
-    public void closeStream(int streamId) throws IOException {
-        RtmpMessage message = new RtmpMessageCommand("closeStream", 0, null);
-        rtmp.writeRtmpMessage(streamId, 0, message);
-        success = true;
-        errorMsg = "";
-        logger.debug("rtmp stream closed.");
-    }
-
-    public NetStream createNetStream(int streamId) {
-        return new NetStream(rtmp, streamId);
-    }
-
-    public void close() {
-        running = false;
-    }
-
-    private boolean handShake() {
+    private boolean doHandShake(RtmpHandShake handshake) {
         boolean success = true;
         while (!handshake.isHandshakeDone()) {
             try {
                 handshake.doClientHandshake();
-                // write to socket channel
                 conn.flush();
             } catch (Exception e) {
                 success = false;
@@ -228,12 +83,112 @@ public class RtmpClient implements Runnable {
         }
         return success;
     }
+    
+    public void connect(final String app, final ResponseListener<Void> listener) throws IOException {
+        final InternalEventListener eventListener = new InternalEventListener() {
+            public void onResult(AmfValue[] result) {
+                Map<String, AmfValue> r = result[1].object();
+                if ("NetConnection.Connect.Success".equals(r.get("code").string())) {
+                    logger.debug("connected rtmp server.");
+                    listener.onSuccess(null);
+                }
+            }
+
+            public void onStatus(AmfValue[] status) {
+                Map<String, AmfValue> r = status[1].object();
+                if ("NetConnection.Error".equals(r.get("code").string())) {
+                    String errorMsg = r.get("details").string();
+                    listener.onError(errorMsg);
+                }
+            }
+        };
+        conn.connect(new ConnectionListener() {
+            @Override
+            public void connectionEstablished(Connection conn) {
+                RtmpHandShake handshake = new RtmpHandShake(rtmp);
+                if (!doHandShake(handshake)) {
+                    listener.onError("Handshake error");
+                }
+                pipeLine.offer(eventListener);
+                AmfValue[] args = { AmfValue.newObject().put("app", app) };
+                RtmpMessage message = new RtmpMessageCommand("connect", TANSACTION_ID, args);
+                try {
+                    rtmp.writeRtmpMessage(STREAM_ID, TIMESTAMP, message);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            @Override
+            public void connectionClosed(Connection conn) {
+            }
+        });
+    }
+
+    public void createStream(final ResponseListener<Integer> listener) throws IOException {
+        InternalEventListener eventListener = new InternalEventListener() {
+            public void onResult(AmfValue[] result) {
+                int streamId = result[1].integer();
+                logger.debug("rtmp stream created.");
+                listener.onSuccess(streamId);
+            }
+
+            public void onStatus(AmfValue[] status) {
+            }
+        };
+        pipeLine.offer(eventListener);
+        RtmpMessage message = new RtmpMessageCommand("createStream", TANSACTION_ID, null);
+        rtmp.writeRtmpMessage(STREAM_ID, TIMESTAMP, message);
+    }
+
+    public void publish(final int streamId, String publishName, final String fileName, final ResponseListener<Void> listener) throws IOException {
+        InternalEventListener eventListener = new InternalEventListener() {
+            public void onResult(AmfValue[] result) {
+            }
+
+            public void onStatus(AmfValue[] status) {
+                Map<String, AmfValue> result = status[1].object();
+                String level = result.get("level").string();
+                String code =  result.get("code").string();
+                if ("status".equals(level) && 
+                    "NetStream.Publish.Start".equals(code)) {
+                    try {
+                        NetStream stream = new NetStream(rtmp, streamId);
+                        player = stream.createPlayer(null, fileName);
+                        if (player != null) {
+                            player.seek(0);
+                            logger.debug("start to publish stream.");
+                            listener.onSuccess(null);
+                            return;
+                        }
+                    } catch (IOException e) {
+                        logger.debug(e.getMessage());
+                    }
+                    listener.onError("Cannot start to publish stream:" + fileName);
+                } else {
+                    String errorMsg = result.get("details").string();
+                    listener.onError(errorMsg);
+                }
+            }
+        };
+        pipeLine.offer(eventListener);
+        RtmpMessage message = new RtmpMessageCommand("publish", TANSACTION_ID, AmfValue.array(null, publishName, "live"));
+        rtmp.writeRtmpMessage(streamId, TIMESTAMP, message);
+    }
+
+    public void closeStream(int streamId) throws IOException {
+        RtmpMessage message = new RtmpMessageCommand("closeStream", 0, null);
+        rtmp.writeRtmpMessage(streamId, TIMESTAMP, message);
+        logger.debug("rtmp stream closed.");
+    }
+
+    public void close() {
+        running = false;
+    }
 
     public void run() {
+        logger.debug("rtmp client start.");
         try {
             while (running) {
-                StreamPlayer player = (StreamPlayer) context
-                        .get(CONTEXT_KEY_PUBLISH_PLAYER);
                 if (player != null) {
                     player.play();
                 }
@@ -242,18 +197,29 @@ public class RtmpClient implements Runnable {
                 conn.flush();
             }
         } catch (EOFException e) {
-            Integer streamId = (Integer) context.get(CONTEXT_KEY_PUBLISH_STREAM_ID);
-            if (streamId != null)
+            if (player != null) {
                 try {
-                    closeStream(streamId);
+	                closeStream(player.getStream().getStreamId());
                 } catch (IOException e1) {
                 }
+            }
         } catch (Exception e) {
+            e.printStackTrace();
         }
         conn.close();
+        synchronized(this) {
+            notifyAll();
+        }
+        logger.debug("rtmp client end.");
     }
-
-    public String getErrorMsg() {
-        return errorMsg;
+    
+    public void waitForEnd() {
+        synchronized(this) {
+            try {
+	            wait();
+            } catch (InterruptedException e) {
+	            e.printStackTrace();
+            }
+        }
     }
 }

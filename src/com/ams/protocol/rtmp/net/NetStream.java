@@ -7,17 +7,20 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ams.protocol.rtmp.amf.*;
 import com.ams.io.ByteBufferInputStream;
 import com.ams.io.RandomAccessFileReader;
 import com.ams.io.RandomAccessFileWriter;
 import com.ams.media.IMediaDeserializer;
 import com.ams.media.flv.FlvDeserializer;
-import com.ams.media.flv.FlvException;
 import com.ams.media.flv.FlvSerializer;
 import com.ams.media.mp4.Mp4Deserializer;
 import com.ams.protocol.rtmp.RtmpConnection;
-import com.ams.protocol.rtmp.message.*;
+import com.ams.protocol.rtmp.amf.AmfValue;
+import com.ams.protocol.rtmp.message.RtmpMessage;
+import com.ams.protocol.rtmp.message.RtmpMessageChunkSize;
+import com.ams.protocol.rtmp.message.RtmpMessageCommand;
+import com.ams.protocol.rtmp.message.RtmpMessageData;
+import com.ams.protocol.rtmp.message.RtmpMessageUserControl;
 
 public class NetStream {
     private Logger logger = LoggerFactory.getLogger(NetStream.class);
@@ -82,7 +85,7 @@ public class NetStream {
         }
         if (publisher != null) {
             publisher.close();
-            PublisherManager.removePublisher(publisher.getPublishName());
+            PublisherManager.getInstance().removePublisher(publisher.getPublishName());
         }
     }
 
@@ -110,8 +113,7 @@ public class NetStream {
         this.timeStamp = timeStamp;
     }
 
-    public void seek(int time) throws NetConnectionException, IOException,
-            FlvException {
+    public void seek(int time) throws IOException {
         if (player == null) {
             writeErrorMessage("Invalid 'Seek' stream id " + streamId);
             return;
@@ -141,7 +143,7 @@ public class NetStream {
     }
 
     public void play(NetContext context, String streamName, int start, int len)
-            throws NetConnectionException, IOException, FlvException {
+            throws IOException {
         if (player != null) {
             writeErrorMessage("This channel is already playing");
             return;
@@ -156,7 +158,8 @@ public class NetStream {
                 "NetStream.Play.Reset",
                 AmfValue.newObject()
                         .put("description", "Resetting " + streamName + ".")
-                        .put("details", streamName).put("clientId", streamId));
+                        .put("details", streamName)
+                        .put("clientId", streamId));
 
         // clear
         rtmp.writeProtocolControlMessage(new RtmpMessageUserControl(
@@ -176,8 +179,7 @@ public class NetStream {
         case -1: // live only
         {
             String publishName = context.getPublishName(app, streamName);
-            StreamPublisher publisher = (StreamPublisher) PublisherManager
-                    .getPublisher(publishName);
+            StreamPublisher publisher = (StreamPublisher) PublisherManager.getInstance().getPublisher(publishName);
             if (publisher == null) {
                 writeErrorMessage("Unknown shared stream '" + streamName + "'");
                 return;
@@ -189,11 +191,9 @@ public class NetStream {
         case -2: // first find live
         {
             String publishName = context.getPublishName(app, streamName);
-            StreamPublisher publisher = (StreamPublisher) PublisherManager
-                    .getPublisher(publishName);
+            StreamPublisher publisher = (StreamPublisher) PublisherManager.getInstance().getPublisher(publishName);
             if (publisher != null) {
-                StreamSubscriber subscriber = new StreamSubscriber(publisher,
-                        this);
+                StreamSubscriber subscriber = new StreamSubscriber(publisher, this);
                 publisher.addSubscriber(subscriber);
             } else {
                 String tokens[] = streamName.split(":");
@@ -274,13 +274,11 @@ public class NetStream {
         writeStatusMessage(
                 "NetStream.Play.Stop",
                 AmfValue.newObject()
-                        .put("description",
-                                "Stoped playing " + playStreamName + ".")
+                        .put("description", "Stoped playing " + playStreamName + ".")
                         .put("clientId", streamId));
     }
 
-    public void pause(boolean pause, long time) throws IOException,
-            NetConnectionException, FlvException {
+    public void pause(boolean pause, long time) throws IOException {
         if (player == null) {
             writeErrorMessage("This channel is already closed");
             return;
@@ -291,8 +289,7 @@ public class NetStream {
                 : "NetStream.Unpause.Notify"), AmfValue.newObject());
     }
 
-    public void publish(NetContext context, String name, String type)
-            throws NetConnectionException, IOException {
+    public void publish(NetContext context, String name, String type) throws IOException {
         String app = context.getAttribute("app");
         String streamName = name.split("\\?")[0];
         // save to share or file
@@ -315,7 +312,7 @@ public class NetStream {
         } else if ("live".equals(type)) {
             // nothing to do
         }
-        PublisherManager.addPublisher(publisher);
+        PublisherManager.getInstance().addPublisher(publisher);
 
         writeStatusMessage("NetStream.Publish.Start",
                 AmfValue.newObject().put("details", streamName));

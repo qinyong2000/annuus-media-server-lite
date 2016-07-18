@@ -31,7 +31,7 @@ class ReplStreamSubscriber extends StreamSubscriber {
 
     protected void sendPublishCommand() {
         try {
-            RtmpMessage message = new RtmpMessageCommand("publish", 1, null, publisher.getPublishName(), "live");
+            RtmpMessage message = new RtmpMessageCommand("publish", 1, AmfValue.array(null, publisher.getPublishName(), "live"));
             stream.writeMessage(message);
         } catch (IOException e) {
         }

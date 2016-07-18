@@ -7,8 +7,8 @@ public class AmfException extends Exception {
         super();
     }
 
-    public AmfException(String arg0) {
-        super(arg0);
+    public AmfException(String message) {
+        super(message);
     }
 
 }

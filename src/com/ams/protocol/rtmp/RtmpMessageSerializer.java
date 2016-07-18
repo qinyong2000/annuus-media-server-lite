@@ -22,8 +22,7 @@ public class RtmpMessageSerializer {
         this.headerSerializer = new RtmpHeaderSerializer(out);
     }
 
-    public void write(int chunkStreamId, int streamId, long timestamp,
-            RtmpMessage message) throws IOException {
+    public void write(int chunkStreamId, int streamId, long timestamp, RtmpMessage message) throws IOException {
         DataBuffer data = new DataBuffer();
         ByteBufferOutputStream bos = new ByteBufferOutputStream(data);
 

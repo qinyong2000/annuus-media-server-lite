@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import com.ams.io.network.Connection;
 import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.RtmpException;
-import com.ams.protocol.rtmp.amf.AmfException;
 import com.ams.protocol.rtmp.amf.AmfValue;
 import com.ams.protocol.rtmp.message.RtmpMessage;
 import com.ams.protocol.rtmp.message.RtmpMessageCommand;
@@ -54,7 +53,7 @@ public class ReplMasterHandler implements IProtocolHandler {
         connection.close();
     }
     
-    private void receive() throws IOException, AmfException, RtmpException {
+    private void receive() throws IOException, RtmpException {
         if (!rtmp.readRtmpMessage())
             return;
         RtmpMessage message = rtmp.getCurrentMessage();
@@ -71,7 +70,7 @@ public class ReplMasterHandler implements IProtocolHandler {
                         logger.debug("alreay in subscribing: {}", publishName);
                         return;
                     }
-                    StreamPublisher publisher = (StreamPublisher)PublisherManager.getPublisher(publishName);
+                    StreamPublisher publisher = (StreamPublisher)PublisherManager.getInstance().getPublisher(publishName);
                     if (publisher != null) {
                         NetStream stream = netConn.createStream();
                         ReplStreamSubscriber subscriber = new ReplStreamSubscriber(publisher, stream);
@@ -92,7 +91,7 @@ public class ReplMasterHandler implements IProtocolHandler {
             // try to close stream
             for (String publishName : streamSubscribers.keySet()) {
                 ReplStreamSubscriber subscriber = streamSubscribers.get(publishName);
-                if (PublisherManager.getPublisher(publishName) == null) {
+                if (PublisherManager.getInstance().getPublisher(publishName) == null) {
                     subscriber.sendCloseStreamCommand();
                     streamSubscribers.remove(publishName);
                 }

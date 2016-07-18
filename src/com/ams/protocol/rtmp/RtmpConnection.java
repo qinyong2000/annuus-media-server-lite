@@ -5,8 +5,9 @@ import java.io.IOException;
 import com.ams.io.ByteBufferInputStream;
 import com.ams.io.ByteBufferOutputStream;
 import com.ams.io.network.Connection;
-import com.ams.protocol.rtmp.amf.*;
-import com.ams.protocol.rtmp.message.*;
+import com.ams.protocol.rtmp.message.RtmpMessage;
+import com.ams.protocol.rtmp.message.RtmpMessageAudio;
+import com.ams.protocol.rtmp.message.RtmpMessageVideo;
 
 public class RtmpConnection {
     private static int WAIT_DATA_TIME = 10;
@@ -35,8 +36,7 @@ public class RtmpConnection {
         this.messageDeserializer = new RtmpMessageDeserializer(in);
     }
 
-    public synchronized boolean readRtmpMessage() throws IOException,
-            AmfException, RtmpException {
+    public synchronized boolean readRtmpMessage() throws IOException, RtmpException {
         conn.waitForInboundData(WAIT_DATA_TIME);
 
         if (currentHeader != null && currentMessage != null) {

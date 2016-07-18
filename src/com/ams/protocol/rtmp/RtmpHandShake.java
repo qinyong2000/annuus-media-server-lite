@@ -361,8 +361,9 @@ public class RtmpHandShake {
     }
 
     private void readVersion() throws IOException, RtmpException {
-        if ((in.readByte() & 0xFF) != 3) // version
-            throw new RtmpException("Invalid version");
+        if ((in.readByte() & 0xFF) != 3) { // version
+            throw new RtmpException("Invalid rtmp version");
+        }
     }
 
     private void writeVersion() throws IOException {
@@ -456,9 +457,6 @@ public class RtmpHandShake {
             if (available < HANDSHAKE_SIZE)
                 break;
             byte[] hs2 = readHandshake(); // read S2 message
-            // if(!Arrays.equals(handShake, hs2)) {
-            // throw new RtmpException("Invalid Handshake");
-            // }
 
             state = STATE_HANDSHAKE_DONE;
             stateChanged = true;
@@ -499,10 +497,6 @@ public class RtmpHandShake {
                 break;
 
             byte[] hs2 = readHandshake(); // read C2 message
-            // if(!Arrays.equals(handShake, hs2)) {
-            // throw new RtmpException("Invalid Handshake");
-            // }
-
             state = STATE_HANDSHAKE_DONE;
             break;
         }

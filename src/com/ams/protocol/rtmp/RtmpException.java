@@ -7,8 +7,8 @@ public class RtmpException extends Exception {
         super();
     }
 
-    public RtmpException(String arg0) {
-        super(arg0);
+    public RtmpException(String message) {
+        super(message);
     }
 
 }

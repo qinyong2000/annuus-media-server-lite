@@ -13,11 +13,9 @@ import com.ams.media.IMsgPublisher;
 import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.RtmpException;
 import com.ams.protocol.rtmp.RtmpHeader;
-import com.ams.protocol.rtmp.amf.AmfException;
 import com.ams.protocol.rtmp.amf.AmfValue;
 import com.ams.protocol.rtmp.message.RtmpMessage;
 import com.ams.protocol.rtmp.message.RtmpMessageCommand;
-import com.ams.protocol.rtmp.net.NetConnectionException;
 import com.ams.protocol.rtmp.net.PublisherManager;
 import com.ams.server.handler.IProtocolHandler;
 
@@ -81,7 +79,7 @@ public class ReplSlaveHandler implements IProtocolHandler {
         connection.close();
     }
 
-    private void receive() throws NetConnectionException, IOException, RtmpException, AmfException {
+    private void receive() throws IOException, RtmpException {
         if (!rtmp.readRtmpMessage())
             return;
         RtmpHeader header = rtmp.getCurrentHeader();
@@ -95,8 +93,8 @@ public class ReplSlaveHandler implements IProtocolHandler {
                 AmfValue[] args = command.getArgs();
                 String publishName = args[1].string();
                 publishingStreams.put(streamId, publishName);
-                if (PublisherManager.getPublisher(publishName) == null) {
-                    PublisherManager.addPublisher(new ReplStreamPublisher(publishName));
+                if (PublisherManager.getInstance().getPublisher(publishName) == null) {
+                    PublisherManager.getInstance().addPublisher(new ReplStreamPublisher(publishName));
                 }
                 // remove subscribe request
                 subscribingRequest.remove(publishName);
@@ -107,10 +105,10 @@ public class ReplSlaveHandler implements IProtocolHandler {
                 if (publishName == null)
                     break;
                 publishingStreams.remove(streamId);
-                IMsgPublisher publisher = PublisherManager.getPublisher(publishName);
+                IMsgPublisher publisher = PublisherManager.getInstance().getPublisher(publishName);
                 if (publisher != null) {
                     publisher.close();
-                    PublisherManager.removePublisher(publishName);
+                    PublisherManager.getInstance().removePublisher(publishName);
                     logger.debug("received close stream: {}", publishName);
                 }
             }
@@ -123,7 +121,7 @@ public class ReplSlaveHandler implements IProtocolHandler {
             String publishName = publishingStreams.get(streamId);
             if (publishName == null)
                 break;
-            IMsgPublisher publisher = PublisherManager.getPublisher(publishName);
+            IMsgPublisher publisher = PublisherManager.getInstance().getPublisher(publishName);
             if (publisher != null) {
                 publisher.publish(message.toMediaMessage(header.getTimestamp()));
             }
