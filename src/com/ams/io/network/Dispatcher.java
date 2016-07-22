@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import com.ams.server.handler.IProtocolService;
 
 public class Dispatcher extends NetworkHandler {
-    final private Logger logger = LoggerFactory.getLogger(Dispatcher.class);
+    private final Logger logger = LoggerFactory.getLogger(Dispatcher.class);
 
     private static final long SELECT_TIMEOUT = 2 * 1000;
     private long timeExpire = 2 * 60 * 1000;
@@ -91,7 +91,6 @@ public class Dispatcher extends NetworkHandler {
                 continue;
             }
             NetworkConnection connection = (NetworkConnection) key.attachment();
-            connection.keepAlive();
             try {
                 if (key.isConnectable()) {
                     if (connection.finishConnect()) {
@@ -109,7 +108,7 @@ public class Dispatcher extends NetworkHandler {
                 }
 
             } catch (Exception e) {
-                //logger.debug("read channel error: {}, {}", connection, e.getMessage());
+                logger.debug("read channel error: {}, {}", connection, e.getMessage());
                 key.cancel();
                 key.attach(null);
                 connection.close();

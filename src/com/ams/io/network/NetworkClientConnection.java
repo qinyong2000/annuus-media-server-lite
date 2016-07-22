@@ -35,7 +35,7 @@ public class NetworkClientConnection extends NetworkConnection {
         addListener(listener);
         if (channel == null) {
             channel = SocketChannel.open();
-            // channel.socket().setReuseAddress(true);
+            channel.socket().setTcpNoDelay(true);
             SocketAddress bindPoint = new InetSocketAddress(0); // bind temp port
             channel.socket().bind(bindPoint);
             channel.configureBlocking(false);
@@ -47,11 +47,13 @@ public class NetworkClientConnection extends NetworkConnection {
     
     public void connect() throws IOException {
         ConnectionListener listener = new ConnectionListener() {
+            @Override
             public void connectionEstablished(Connection conn) {
                 synchronized (conn) {
                     conn.notifyAll();
                 }
             }
+            @Override
             public void connectionClosed(Connection conn) {
             }
         };

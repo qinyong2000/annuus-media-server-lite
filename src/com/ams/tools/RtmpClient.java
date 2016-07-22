@@ -4,6 +4,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.slf4j.Logger;
@@ -21,7 +23,7 @@ import com.ams.protocol.rtmp.message.RtmpMessageCommand;
 import com.ams.protocol.rtmp.net.NetStream;
 import com.ams.protocol.rtmp.net.StreamPlayer;
 
-public class RtmpClient implements Runnable {
+public class RtmpClient {
     public interface ResponseListener<T> {
         public void onSuccess(T response);
         public void onError(String message);
@@ -40,15 +42,47 @@ public class RtmpClient implements Runnable {
     private LinkedBlockingQueue<InternalEventListener> pipeLine;
     private StreamPlayer player = null;
     private boolean running = true;
+    private Executor executor = null;
 
     public RtmpClient(String host, int port) {
         conn = new NetworkClientConnection(new InetSocketAddress(host, port));
         rtmp = new RtmpConnection(conn);
-        Thread t = new Thread(this, "RtmpClient");
-        t.start();
+        executor = Executors.newCachedThreadPool();
     }
-
-    private void readResponse() throws IOException, RtmpException {
+    
+    private void startRtmpClient() {
+      executor.execute(new Runnable() {
+        @Override
+        public void run() {
+          logger.debug("rtmp client start.");
+          try {
+              while (running) {
+                  if (player != null) {
+                      player.play();
+                  }
+                  readRtmpResponse();
+                  // write to socket channel
+                  conn.flush();
+              }
+          } catch (EOFException e) {
+              if (player != null) {
+                  try {
+                      closeStream(player.getStream().getStreamId());
+                  } catch (IOException e1) {}
+              }
+          } catch (Exception e) {
+              e.printStackTrace();
+          }
+          conn.close();
+          synchronized(this) {
+              notifyAll();
+          }
+          logger.debug("rtmp client end.");
+        }
+      });
+    }
+    
+    private void readRtmpResponse() throws IOException, RtmpException {
         rtmp.readRtmpMessage();
 
         if (!rtmp.isRtmpMessageReady())
@@ -71,11 +105,13 @@ public class RtmpClient implements Runnable {
     }
 
     private boolean doHandShake(RtmpHandShake handshake) {
+        logger.debug("start rtmp hand shake");
         boolean success = true;
         while (!handshake.isHandshakeDone()) {
             try {
                 handshake.doClientHandshake();
                 conn.flush();
+                Thread.sleep(1);
             } catch (Exception e) {
                 success = false;
                 break;
@@ -110,6 +146,9 @@ public class RtmpClient implements Runnable {
                     listener.onError("Handshake error");
                     return;
                 }
+                // start rtmp client
+                startRtmpClient();
+                // send connect command
                 pipeLine.offer(eventListener);
                 AmfValue[] args = { AmfValue.newObject().put("app", app) };
                 RtmpMessage message = new RtmpMessageCommand("connect", TANSACTION_ID, args);
@@ -121,6 +160,7 @@ public class RtmpClient implements Runnable {
             }
             @Override
             public void connectionClosed(Connection conn) {
+              
             }
         });
     }
@@ -187,31 +227,6 @@ public class RtmpClient implements Runnable {
     }
 
     public void run() {
-        logger.debug("rtmp client start.");
-        try {
-            while (running) {
-                if (player != null) {
-                    player.play();
-                }
-                readResponse();
-                // write to socket channel
-                conn.flush();
-            }
-        } catch (EOFException e) {
-            if (player != null) {
-                try {
-	                closeStream(player.getStream().getStreamId());
-                } catch (IOException e1) {
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        conn.close();
-        synchronized(this) {
-            notifyAll();
-        }
-        logger.debug("rtmp client end.");
     }
     
     public void waitForEnd() {

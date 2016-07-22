@@ -437,7 +437,7 @@ public class RtmpHandShake {
         switch (state) {
         case STATE_UNINIT:
             writeVersion(); // write C0 message
-            writeHandshake(); // write c1 message
+            writeHandshake(); // write C1 message
             state = STATE_VERSION_SENT;
             stateChanged = true;
             break;
@@ -475,6 +475,7 @@ public class RtmpHandShake {
             readVersion(); // read C0 message
             writeVersion(); // write S0 message
             writeHandshake(HANDSHAKE_SERVER_BYTES); // write S1 message
+            System.out.println("handshake write S1 message");
             state = STATE_VERSION_SENT;
             break;
 

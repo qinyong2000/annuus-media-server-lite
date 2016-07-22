@@ -19,6 +19,7 @@ public class NetworkConnection extends Connection {
     
     public NetworkConnection() {
         super();
+        keepAlive();
     }
 
     protected boolean finishConnect() throws IOException {
@@ -53,6 +54,7 @@ public class NetworkConnection extends Connection {
         int retry = 0;
         try {
             while (data != null) {
+System.out.println("write channel");
                 long len = channel.write(data);
                 if (len < 0) {
                     throw new EOFException();
