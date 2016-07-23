@@ -74,9 +74,7 @@ public class RtmpClient {
               e.printStackTrace();
           }
           conn.close();
-          synchronized(this) {
-              notifyAll();
-          }
+          notifyEnd();
           logger.debug("rtmp client end.");
         }
       });
@@ -140,7 +138,7 @@ public class RtmpClient {
         };
         conn.connect(new ConnectionListener() {
             @Override
-            public void connectionEstablished(Connection conn) {
+            public void onConnectionEstablished(Connection conn) {
                 RtmpHandShake handshake = new RtmpHandShake(rtmp);
                 if (!doHandShake(handshake)) {
                     listener.onError("Handshake error");
@@ -159,8 +157,11 @@ public class RtmpClient {
                 }
             }
             @Override
-            public void connectionClosed(Connection conn) {
-              
+            public void onConnectionClosed(Connection conn) {
+            }
+            @Override
+            public void onConnectionError(Connection conn, int error) {
+                listener.onError("connect rtmp server error:" + error);
             }
         });
     }
@@ -226,7 +227,10 @@ public class RtmpClient {
         running = false;
     }
 
-    public void run() {
+    public void notifyEnd() {
+        synchronized(this) {
+            notifyAll();
+        }
     }
     
     public void waitForEnd() {

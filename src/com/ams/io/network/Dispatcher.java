@@ -92,10 +92,11 @@ public class Dispatcher extends NetworkHandler {
             }
             NetworkConnection connection = (NetworkConnection) key.attachment();
             try {
-                if (key.isConnectable()) {
-                    if (connection.finishConnect()) {
+                if (key.isConnectable() && connection instanceof NetworkClientConnection) {
+                    NetworkClientConnection clientConnection = (NetworkClientConnection) connection;
+                    if (clientConnection.finishConnect()) {
                         key.interestOps(SelectionKey.OP_READ);
-                        openConnection(connection);
+                        openConnection(clientConnection);
                     }
                 }
 
@@ -107,8 +108,8 @@ public class Dispatcher extends NetworkHandler {
                     
                 }
 
-            } catch (Exception e) {
-                logger.debug("read channel error: {}, {}", connection, e.getMessage());
+            } catch (IOException e) {
+                logger.debug("network dispatcher error: {}, {}", connection, e.getMessage());
                 key.cancel();
                 key.attach(null);
                 connection.close();
@@ -124,7 +125,7 @@ public class Dispatcher extends NetworkHandler {
     }
     
     private void expireIdleKeys() {
-        // check every timeExpire
+        // check every timeExpire(2h)
         long now = System.currentTimeMillis();
         long elapsedTime = now - lastExpirationTime;
         if (elapsedTime < timeExpire) {
@@ -151,11 +152,11 @@ public class Dispatcher extends NetworkHandler {
         // close all keys
         for (SelectionKey key : selector.keys()) {
             // Keep-alive expired
-            NetworkConnection connector = (NetworkConnection) key.attachment();
-            if (connector != null) {
+            NetworkConnection connection = (NetworkConnection) key.attachment();
+            if (connection != null) {
                 key.cancel();
                 key.attach(null);
-                connector.close();
+                connection.close();
             }
         }
 

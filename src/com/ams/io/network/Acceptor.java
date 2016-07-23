@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 import com.ams.server.handler.IProtocolService;
 
 public class Acceptor extends NetworkHandler {
-    final private Logger logger = LoggerFactory.getLogger(Acceptor.class);
+    private final Logger logger = LoggerFactory.getLogger(Acceptor.class);
 
     private SocketAddress listenAddress;
     private SocketProperties socketProperties = null;

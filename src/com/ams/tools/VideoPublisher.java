@@ -33,24 +33,29 @@ public class VideoPublisher {
 	                                @Override
 	                                public void onError(String message) {
 	                                    logger.info(message);
+	                                    client.notifyEnd();
 	                                }
 	                            });
                             } catch (IOException e) {
 	                            e.printStackTrace();
+	                            client.notifyEnd();
                             }
 	                    }
 	                    @Override
 	                    public void onError(String message) {
 	                        logger.info(message);
+	                        client.notifyEnd();
 	                    }
 	                });
                 } catch (IOException e) {
 	                e.printStackTrace();
+	                client.notifyEnd();
                 }
             }
             @Override
             public void onError(String message) {
                 logger.info(message);
+                client.notifyEnd();
             }
         });
         
@@ -71,5 +76,6 @@ public class VideoPublisher {
         } catch (IOException e) {
             logger.debug(e.toString());
         }
+        logger.info("end");
     }
 }

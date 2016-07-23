@@ -7,9 +7,14 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
 public class NetworkClientConnection extends NetworkConnection {
-    protected static Dispatcher dispatcher = null;
+    public static int CONNECT_ERROR_TIMEOUT = 1;
+    public static int CONNECT_ERROR = 2;
+
+	protected static Dispatcher networkDispatcher = null;
     protected int connectTimeout = DEFAULT_TIMEOUT_MS;
     protected InetSocketAddress remote;
+    protected long startTime;
+    
     
 	public NetworkClientConnection(InetSocketAddress remote) {
         super();
@@ -21,18 +26,52 @@ public class NetworkClientConnection extends NetworkConnection {
         this.remote = new InetSocketAddress(host, port);
     }
     
-    protected Dispatcher getDispatcher() throws IOException {
-        if (dispatcher == null) {
+    protected Dispatcher getNetworkDispatcher() throws IOException {
+        if (networkDispatcher == null) {
             synchronized (this) {
-                dispatcher = new Dispatcher();
-                dispatcher.start();
+                networkDispatcher = new Dispatcher();
+                networkDispatcher.start();
             }
         }
-        return dispatcher;
+        return networkDispatcher;
+    }
+    
+    protected boolean finishConnect() throws IOException {
+        // connect timeout?
+        if (isConnectTimeout()) {
+             dispatchConnectError(CONNECT_ERROR_TIMEOUT);
+             throw new IOException("connect timeout");
+        }
+        if (channel.isConnectionPending()) {
+            try {
+	            return channel.finishConnect();
+            } catch (IOException e) {
+                dispatchConnectError(CONNECT_ERROR_TIMEOUT);
+               throw e;
+            }
+        }
+        return false;
+    }
+
+    protected boolean isConnectTimeout() {
+        long now = System.currentTimeMillis();
+        return now - startTime >= connectTimeout;
+    }
+    
+    protected void dispatchConnectError(final int error) {
+        // dispatch event
+        if (listener != null) {
+            dispatchEvent(new Runnable() {
+                @Override
+                public void run() {
+                    listener.onConnectionError(NetworkClientConnection.this, error);
+                }
+            });
+        }
     }
     
     public void connect(ConnectionListener listener) throws IOException {
-        addListener(listener);
+        setListener(listener);
         if (channel == null) {
             channel = SocketChannel.open();
             channel.socket().setTcpNoDelay(true);
@@ -40,38 +79,42 @@ public class NetworkClientConnection extends NetworkConnection {
             channel.socket().bind(bindPoint);
             channel.configureBlocking(false);
             interestOps = SelectionKey.OP_CONNECT;
-            getDispatcher().addChannelToRegister(this);
+            getNetworkDispatcher().addChannelToRegister(this);
         }
         channel.connect(remote);
+        startTime = System.currentTimeMillis();
     }
-    
+
     public void connect() throws IOException {
         ConnectionListener listener = new ConnectionListener() {
             @Override
-            public void connectionEstablished(Connection conn) {
+            public void onConnectionEstablished(Connection conn) {
                 synchronized (conn) {
                     conn.notifyAll();
                 }
             }
             @Override
-            public void connectionClosed(Connection conn) {
+            public void onConnectionClosed(Connection conn) {
+            }
+            @Override
+            public void onConnectionError(Connection conn, int error) {
+                synchronized (conn) {
+                    conn.notifyAll();
+                }
             }
         };
-        long start = System.currentTimeMillis();
-        
         try {
             synchronized (this) {
                 connect(listener);
-                wait(connectTimeout);
+                wait();
             }
         } catch (Exception e) {
             channel = null;
             throw new IOException("connect error");
         } finally {
-            removeListener(listener);
+            setListener(null);
         }
-        long now = System.currentTimeMillis();
-        if (now - start >= connectTimeout) {
+        if (isConnectTimeout()) {
             channel = null;
             throw new IOException("connect time out");
         }

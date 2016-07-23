@@ -5,6 +5,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.ams.io.buffer.IByteBufferReader;
@@ -23,9 +25,11 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
     protected boolean closed = true;
     protected int readTimeout = DEFAULT_TIMEOUT_MS;
     
+    protected ConnectionListener listener = null;
+    protected Executor eventDispatcher = null;
+    
     protected ByteBufferInputStream inStream;
     protected ByteBufferOutputStream outStream;
-    protected List<ConnectionListener> listeners = new ArrayList<ConnectionListener>();
 
     public Connection() {
         this.inStream = new ByteBufferInputStream(this);
@@ -36,8 +40,14 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         if (!isClosed())
             return;
         closed = false;
-        for (ConnectionListener listener : listeners) {
-            listener.connectionEstablished(this);
+        // dispatch event
+        if (listener != null) {
+            dispatchEvent(new Runnable() {
+                @Override
+                public void run() {
+                    listener.onConnectionEstablished(Connection.this);
+                }
+            });
         }
     }
 
@@ -47,8 +57,15 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
             flush();
         } catch (IOException e) {
         }
-        for (ConnectionListener listener : listeners) {
-            listener.connectionClosed(this);
+        
+        // dispatch event
+        if (listener != null) {
+            dispatchEvent(new Runnable() {
+                @Override
+                public void run() {
+                    listener.onConnectionClosed(Connection.this);
+                }
+            });
         }
     }
     
@@ -182,14 +199,23 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         return outStream;
     }
     
-    public void addListener(ConnectionListener listener) {
-        if (!listeners.contains(listener)) {
-            listeners.add(listener);
+    protected void dispatchEvent(Runnable event) {
+        if (eventDispatcher == null) {
+            eventDispatcher = Executors.newCachedThreadPool();
         }
-    }
-
-    public boolean removeListener(ConnectionListener listener) {
-        return listeners.remove(listener);
+        eventDispatcher.execute(event);
     }
     
+    public void setEventDispatcher(Executor eventDispatcher) {
+        this.eventDispatcher = eventDispatcher;
+    }
+    
+    public void setListener(ConnectionListener listener) {
+        this.listener = listener;
+    }
+    
+    protected ConnectionListener getListener() {
+        return listener;
+    }
+   
 }

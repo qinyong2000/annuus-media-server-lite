@@ -22,17 +22,11 @@ public class NetworkConnection extends Connection {
         keepAlive();
     }
 
-    protected boolean finishConnect() throws IOException {
-        if (channel.isConnectionPending()) {
-            return channel.finishConnect();
-        }
-        return false;
-    }
-
     protected void readChannel() throws IOException {
         if (isReadBlocking()) {
             return;
         }
+        keepAlive();
         if (readBuffer == null || readBuffer.remaining() < MIN_READ_BUFFER_SIZE) {
             readBuffer = ByteBufferFactory.allocate(MAX_READ_BUFFER_SIZE);
         }
@@ -54,7 +48,6 @@ public class NetworkConnection extends Connection {
         int retry = 0;
         try {
             while (data != null) {
-System.out.println("write channel");
                 long len = channel.write(data);
                 if (len < 0) {
                     throw new EOFException();
@@ -110,7 +103,7 @@ System.out.println("write channel");
         keepAliveTime = System.currentTimeMillis();
     }
 
-    public long getKeepAliveTime() {
+    protected long getKeepAliveTime() {
         return keepAliveTime;
     }
 
