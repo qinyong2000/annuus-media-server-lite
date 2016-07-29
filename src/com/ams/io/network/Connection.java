@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.ams.io.buffer.IByteBufferReader;
@@ -96,14 +95,24 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         return readAvailable.get();
     }
 
-    public void offerInboundBuffers(ByteBuffer buffers[]) {
+    public void offerInboundBuffers(final ByteBuffer buffers[]) {
         for (ByteBuffer buffer : buffers) {
             inboundBufferQueue.offer(buffer);
             readAvailable.addAndGet(buffer.remaining());
         }
         synchronized (inboundBufferQueue) {
-            inboundBufferQueue.notifyAll();
+            inboundBufferQueue.notify();
         }
+        // dispatch event
+        if (listener != null) {
+            dispatchEvent(new Runnable() {
+                @Override
+                public void run() {
+                    listener.onConnectionDataReceived(Connection.this, buffers);
+                }
+            });
+        }
+        
     }
 
     public ByteBuffer[] pollOutboundBuffers() {
@@ -201,9 +210,10 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
     
     protected void dispatchEvent(Runnable event) {
         if (eventDispatcher == null) {
-            eventDispatcher = Executors.newCachedThreadPool();
+            event.run();
+        } else {
+            eventDispatcher.execute(event);
         }
-        eventDispatcher.execute(event);
     }
     
     public void setEventDispatcher(Executor eventDispatcher) {

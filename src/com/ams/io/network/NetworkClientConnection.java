@@ -3,22 +3,25 @@ package com.ams.io.network;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.Executors;
 
 public class NetworkClientConnection extends NetworkConnection {
     public static int CONNECT_ERROR_TIMEOUT = 1;
     public static int CONNECT_ERROR = 2;
 
-	protected static Dispatcher networkDispatcher = null;
+    protected static Dispatcher networkDispatcher = null;
     protected int connectTimeout = DEFAULT_TIMEOUT_MS;
     protected InetSocketAddress remote;
     protected long startTime;
     
     
-	public NetworkClientConnection(InetSocketAddress remote) {
+    public NetworkClientConnection(InetSocketAddress remote) {
         super();
         this.remote = remote;
+        setEventDispatcher(Executors.newSingleThreadExecutor());
     }
 
     public NetworkClientConnection(String host, int port) {
@@ -90,7 +93,7 @@ public class NetworkClientConnection extends NetworkConnection {
             @Override
             public void onConnectionEstablished(Connection conn) {
                 synchronized (conn) {
-                    conn.notifyAll();
+                    conn.notify();
                 }
             }
             @Override
@@ -99,8 +102,11 @@ public class NetworkClientConnection extends NetworkConnection {
             @Override
             public void onConnectionError(Connection conn, int error) {
                 synchronized (conn) {
-                    conn.notifyAll();
+                    conn.notify();
                 }
+            }
+            @Override
+            public void onConnectionDataReceived(Connection conn, ByteBuffer[] buffers) {
             }
         };
         try {

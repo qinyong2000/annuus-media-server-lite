@@ -3,6 +3,7 @@ package com.ams.tools;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -163,6 +164,9 @@ public class RtmpClient {
             public void onConnectionError(Connection conn, int error) {
                 listener.onError("connect rtmp server error:" + error);
             }
+            @Override
+            public void onConnectionDataReceived(Connection conn, ByteBuffer[] buffers) {
+            }
         });
     }
 
@@ -229,7 +233,7 @@ public class RtmpClient {
 
     public void notifyEnd() {
         synchronized(this) {
-            notifyAll();
+            notify();
         }
     }
     
