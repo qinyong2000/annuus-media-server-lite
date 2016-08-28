@@ -1,10 +1,14 @@
 package com.ams.server.handler.rtmp;
 
+import java.io.IOException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ams.io.ReadBlockingException;
 import com.ams.io.network.Connection;
 import com.ams.protocol.rtmp.RtmpConnection;
+import com.ams.protocol.rtmp.RtmpException;
 import com.ams.protocol.rtmp.net.NetConnection;
 import com.ams.protocol.rtmp.net.NetContext;
 import com.ams.server.handler.IProtocolHandler;
@@ -29,20 +33,22 @@ public class RtmpHandler implements IProtocolHandler {
 
             // write client video/audio streams
             netConnection.playStreams();
-
-            // write to socket channel
             connection.flush();
-        } catch (Exception e) {
+        } catch (IOException e) {
             logger.debug(e.getMessage());
             close();
+        } catch (RtmpException e) {
+	        e.printStackTrace();
+        } catch (ReadBlockingException e) {
         }
+        
     }
 
     public boolean isKeepAlive() {
         return !connection.isClosed();
     }
 
-	@Override
+    @Override
     public void close() {
         connection.close();
         netConnection.close();

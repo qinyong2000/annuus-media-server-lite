@@ -8,7 +8,7 @@ import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ams.io.network.NetworkClientConnection;
+import com.ams.io.network.ClientNetworkConnection;
 import com.ams.media.IMsgPublisher;
 import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.RtmpException;
@@ -22,7 +22,7 @@ import com.ams.server.handler.IProtocolHandler;
 public class ReplSlaveHandler implements IProtocolHandler {
     private final Logger logger = LoggerFactory.getLogger(ReplSlaveHandler.class);
 
-    private NetworkClientConnection connection;
+    private ClientNetworkConnection connection;
     private RtmpConnection rtmp;
     private HashMap<Integer, String> publishingStreams = new HashMap<Integer, String>();
     private TreeSet<String> subscribingRequest = new TreeSet<String>();
@@ -30,7 +30,7 @@ public class ReplSlaveHandler implements IProtocolHandler {
     private long keepaliveTime;
     
     public ReplSlaveHandler(String host, int port) {
-        this.connection = new NetworkClientConnection(host, port);
+        this.connection = new ClientNetworkConnection(host, port);
         this.rtmp = new RtmpConnection(connection);
     }
 

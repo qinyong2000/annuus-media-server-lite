@@ -6,9 +6,10 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-public class NetworkClientConnection extends NetworkConnection {
+public class ClientNetworkConnection extends NetworkConnection {
     public static int CONNECT_ERROR_TIMEOUT = 1;
     public static int CONNECT_ERROR = 2;
 
@@ -16,15 +17,17 @@ public class NetworkClientConnection extends NetworkConnection {
     protected int connectTimeout = DEFAULT_TIMEOUT_MS;
     protected InetSocketAddress remote;
     protected long startTime;
+    protected NetworkConnectionListener listener = null;
+    protected Executor eventDispatcher = null;
     
     
-    public NetworkClientConnection(InetSocketAddress remote) {
+    public ClientNetworkConnection(InetSocketAddress remote) {
         super();
         this.remote = remote;
         setEventDispatcher(Executors.newSingleThreadExecutor());
     }
 
-    public NetworkClientConnection(String host, int port) {
+    public ClientNetworkConnection(String host, int port) {
         super();
         this.remote = new InetSocketAddress(host, port);
     }
@@ -47,7 +50,10 @@ public class NetworkClientConnection extends NetworkConnection {
         }
         if (channel.isConnectionPending()) {
             try {
-	            return channel.finishConnect();
+                if (selectionKey != null && selectionKey.isValid()) {
+                    selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                }
+                return channel.finishConnect();
             } catch (IOException e) {
                 dispatchConnectError(CONNECT_ERROR_TIMEOUT);
                throw e;
@@ -67,13 +73,13 @@ public class NetworkClientConnection extends NetworkConnection {
             dispatchEvent(new Runnable() {
                 @Override
                 public void run() {
-                    listener.onConnectionError(NetworkClientConnection.this, error);
+                    listener.onConnectionError(ClientNetworkConnection.this, error);
                 }
             });
         }
     }
     
-    public void connect(ConnectionListener listener) throws IOException {
+    public void connect(NetworkConnectionListener listener) throws IOException {
         setListener(listener);
         if (channel == null) {
             channel = SocketChannel.open();
@@ -89,24 +95,24 @@ public class NetworkClientConnection extends NetworkConnection {
     }
 
     public void connect() throws IOException {
-        ConnectionListener listener = new ConnectionListener() {
+        NetworkConnectionListener listener = new NetworkConnectionListener() {
             @Override
-            public void onConnectionEstablished(Connection conn) {
+            public void onConnectionEstablished(NetworkConnection conn) {
                 synchronized (conn) {
                     conn.notify();
                 }
             }
             @Override
-            public void onConnectionClosed(Connection conn) {
+            public void onConnectionClosed(NetworkConnection conn) {
             }
             @Override
-            public void onConnectionError(Connection conn, int error) {
+            public void onConnectionError(NetworkConnection conn, int error) {
                 synchronized (conn) {
                     conn.notify();
                 }
             }
             @Override
-            public void onConnectionDataReceived(Connection conn, ByteBuffer[] buffers) {
+            public void onConnectionDataReceived(NetworkConnection conn, ByteBuffer[] buffers) {
             }
         };
         try {
@@ -126,12 +132,76 @@ public class NetworkClientConnection extends NetworkConnection {
         }
     }
     
+    @Override
+    public void offerInboundBuffers(final ByteBuffer buffers[]) {
+        super.offerInboundBuffers(buffers);
+        
+        // dispatch event
+        if (listener != null) {
+            dispatchEvent(new Runnable() {
+                @Override
+                public void run() {
+                    listener.onConnectionDataReceived(ClientNetworkConnection.this, buffers);
+                }
+            });
+        }
+        
+    }
+
+    @Override
+    public void open() {
+        super.open();
+        // dispatch event
+        if (listener != null) {
+            dispatchEvent(new Runnable() {
+                @Override
+                public void run() {
+                    listener.onConnectionEstablished(ClientNetworkConnection.this);
+                }
+            });
+        }
+    }
+    
+    @Override
+    public void close() {
+        super.close();
+        // dispatch event
+        if (listener != null) {
+            dispatchEvent(new Runnable() {
+                @Override
+                public void run() {
+                    listener.onConnectionClosed(ClientNetworkConnection.this);
+                }
+            });
+        }
+    }
+    
     public void setConnectTimeout(int timeout) {
         this.connectTimeout = timeout;
     }
 
     public InetSocketAddress getRemoteAddress() {
         return remote;
+    }
+    
+    protected void dispatchEvent(Runnable event) {
+        if (eventDispatcher == null) {
+            event.run();
+        } else {
+            eventDispatcher.execute(event);
+        }
+    }
+    
+    public void setEventDispatcher(Executor eventDispatcher) {
+        this.eventDispatcher = eventDispatcher;
+    }
+    
+    public void setListener(NetworkConnectionListener listener) {
+        this.listener = listener;
+    }
+    
+    protected NetworkConnectionListener getListener() {
+        return listener;
     }
     
 }

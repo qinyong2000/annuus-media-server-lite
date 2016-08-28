@@ -16,7 +16,7 @@ public class Dispatcher extends NetworkHandler {
     private final Logger logger = LoggerFactory.getLogger(Dispatcher.class);
 
     private static final long SELECT_TIMEOUT = 2 * 1000;
-    private long timeExpire = 2 * 60 * 1000;
+    private long timeExpire =  30 * 60 * 1000;
     private long lastExpirationTime = 0;
     private Selector selector = null;
     private ConcurrentLinkedQueue<NetworkConnection> registerConnectionQueue = null;
@@ -91,11 +91,11 @@ public class Dispatcher extends NetworkHandler {
                 continue;
             }
             NetworkConnection connection = (NetworkConnection) key.attachment();
+            connection.setSelectionKey(selector, key);
             try {
-                if (key.isConnectable() && connection instanceof NetworkClientConnection) {
-                    NetworkClientConnection clientConnection = (NetworkClientConnection) connection;
+                if (key.isConnectable() && connection instanceof ClientNetworkConnection) {
+                    ClientNetworkConnection clientConnection = (ClientNetworkConnection) connection;
                     if (clientConnection.finishConnect()) {
-                        key.interestOps(SelectionKey.OP_READ);
                         openConnection(clientConnection);
                     }
                 }
@@ -105,7 +105,10 @@ public class Dispatcher extends NetworkHandler {
                     if (connection.isClosed()) {
                         openConnection(connection);
                     }
-                    
+                }
+                
+                if (key.isWritable()) {
+                    connection.writeToChannel();
                 }
 
             } catch (IOException e) {
@@ -125,7 +128,7 @@ public class Dispatcher extends NetworkHandler {
     }
     
     private void expireIdleKeys() {
-        // check every timeExpire(2h)
+        // check every timeExpire(30m)
         long now = System.currentTimeMillis();
         long elapsedTime = now - lastExpirationTime;
         if (elapsedTime < timeExpire) {

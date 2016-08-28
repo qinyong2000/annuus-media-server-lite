@@ -475,7 +475,6 @@ public class RtmpHandShake {
             readVersion(); // read C0 message
             writeVersion(); // write S0 message
             writeHandshake(HANDSHAKE_SERVER_BYTES); // write S1 message
-            System.out.println("handshake write S1 message");
             state = STATE_VERSION_SENT;
             break;
 
@@ -483,8 +482,7 @@ public class RtmpHandShake {
             if (available < HANDSHAKE_SIZE)
                 break;
             byte[] hs1 = readHandshake(); // read C1 message
-            if (hs1[4] == 0) { // < Flash Player 9.0.115.0(Flash Player 9 update
-                               // 3)
+            if (hs1[4] == 0) { // < Flash Player 9.0.115.0(Flash Player 9 update 3)
                 writeHandshake(hs1); // write S2 message
             } else {
                 writeHandshake(getHandshake(hs1)); // write S2 message

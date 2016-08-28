@@ -7,7 +7,7 @@ it now supports the following features:
  4.Streaming Audio/Video (FLV, MP4(H264/AAC), F4V) 
  5.Recording Live Streams (FLV) 
  6.Live Stream Publishing(VP6, H264)
- 7.Live Stream Replication(TCP unicast and UDP multicast) 
+ 7.Live Stream Replication(TCP unicast) 
 
 ## Setting
 The name of configure file is server.conf. 
@@ -23,14 +23,11 @@ The name of configure file is server.conf.
     rtmp.host=0.0.0.0   ;IP address of rtmp server
     rtmp.port=1935      ;listen port of rtmp server
     rtmp.root=video     ;root path of video file
-    rtmp.tunnel=8088	;http port of RTMPT
 4. Live stream replication setting
     repl.ucast.host=0.0.0.0              ;IP address of TCP replication
     repl.ucast.port=1936                 ;listen port of TCP replication
     repl.ucast.master.host=0.0.0.0       ;IP adddress master server host
     repl.ucast.master.port=1936          ;listen port of master server host
-    repl.mcast.group=239.255.255.255     ;group IP address of multicast
-    repl.mcast.port=5000                 ;port of multicast replication
 
 ## Run Server
     ./ams.sh

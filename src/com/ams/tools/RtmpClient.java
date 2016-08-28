@@ -12,9 +12,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ams.io.network.Connection;
-import com.ams.io.network.ConnectionListener;
-import com.ams.io.network.NetworkClientConnection;
+import com.ams.io.network.NetworkConnection;
+import com.ams.io.network.NetworkConnectionListener;
+import com.ams.io.network.ClientNetworkConnection;
 import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.RtmpException;
 import com.ams.protocol.rtmp.RtmpHandShake;
@@ -38,7 +38,7 @@ public class RtmpClient {
     private final static int STREAM_ID = 0;
     private final static int TIMESTAMP = 0;
     private final static int TANSACTION_ID = 1;  // always 1
-    private NetworkClientConnection conn;
+    private ClientNetworkConnection conn;
     private RtmpConnection rtmp;
     private LinkedBlockingQueue<InternalEventListener> pipeLine;
     private StreamPlayer player = null;
@@ -46,7 +46,7 @@ public class RtmpClient {
     private Executor executor = null;
 
     public RtmpClient(String host, int port) {
-        conn = new NetworkClientConnection(new InetSocketAddress(host, port));
+        conn = new ClientNetworkConnection(new InetSocketAddress(host, port));
         rtmp = new RtmpConnection(conn);
         executor = Executors.newCachedThreadPool();
     }
@@ -137,9 +137,9 @@ public class RtmpClient {
                 }
             }
         };
-        conn.connect(new ConnectionListener() {
+        conn.connect(new NetworkConnectionListener() {
             @Override
-            public void onConnectionEstablished(Connection conn) {
+            public void onConnectionEstablished(NetworkConnection conn) {
                 RtmpHandShake handshake = new RtmpHandShake(rtmp);
                 if (!doHandShake(handshake)) {
                     listener.onError("Handshake error");
@@ -158,14 +158,14 @@ public class RtmpClient {
                 }
             }
             @Override
-            public void onConnectionClosed(Connection conn) {
+            public void onConnectionClosed(NetworkConnection conn) {
             }
             @Override
-            public void onConnectionError(Connection conn, int error) {
+            public void onConnectionError(NetworkConnection conn, int error) {
                 listener.onError("connect rtmp server error:" + error);
             }
             @Override
-            public void onConnectionDataReceived(Connection conn, ByteBuffer[] buffers) {
+            public void onConnectionDataReceived(NetworkConnection conn, ByteBuffer[] buffers) {
             }
         });
     }

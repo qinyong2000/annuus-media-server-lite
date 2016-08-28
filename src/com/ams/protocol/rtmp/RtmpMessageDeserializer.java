@@ -3,7 +3,7 @@ package com.ams.protocol.rtmp;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Map;
 
 import com.ams.io.buffer.DataBuffer;
 import com.ams.io.ByteBufferInputStream;
@@ -27,13 +27,12 @@ import com.ams.protocol.rtmp.message.RtmpMessageWindowAckSize;
 
 public class RtmpMessageDeserializer {
     private int readChunkSize = 128;
-    protected HashMap<Integer, RtmpChunkData> chunkDataMap;
-    protected ByteBufferInputStream in;
+    private Map<Integer, RtmpChunkData> chunkDataMap;
+    private ByteBufferInputStream in;
 
-    public RtmpMessageDeserializer(ByteBufferInputStream in) {
-        super();
+    public RtmpMessageDeserializer(ByteBufferInputStream in, Map<Integer, RtmpChunkData> chunkDataMap) {
         this.in = in;
-        this.chunkDataMap = new HashMap<Integer, RtmpChunkData>();
+        this.chunkDataMap = chunkDataMap;
     }
 
     public RtmpMessage read(RtmpHeader header) throws IOException, RtmpException {

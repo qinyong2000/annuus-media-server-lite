@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ams.io.network.Connection;
+import com.ams.io.ReadBlockingException;
 import com.ams.protocol.http.DefaultServlet;
 import com.ams.protocol.http.HttpRequest;
 import com.ams.protocol.http.HttpResponse;
@@ -24,11 +25,10 @@ public class HttpHandler implements IProtocolHandler {
     }
 
     public void run() {
+        DefaultServlet servlet = new DefaultServlet(context);
         HttpRequest request = new HttpRequest(connection.getInputStream());
         HttpResponse response = new HttpResponse(connection.getOutputStream());
         try {
-            DefaultServlet servlet = new DefaultServlet(context);
-
             request.parse();
             servlet.service(request, response);
             if (request.isKeepAlive()) {
@@ -39,6 +39,7 @@ public class HttpHandler implements IProtocolHandler {
         } catch (IOException e) {
             logger.debug(e.getMessage());
             close();
+        } catch (ReadBlockingException e1) {
         }
     }
 

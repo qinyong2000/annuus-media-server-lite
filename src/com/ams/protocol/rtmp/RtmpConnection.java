@@ -1,6 +1,7 @@
 package com.ams.protocol.rtmp;
 
 import java.io.IOException;
+import java.util.HashMap;
 
 import com.ams.io.ByteBufferInputStream;
 import com.ams.io.ByteBufferOutputStream;
@@ -10,7 +11,6 @@ import com.ams.protocol.rtmp.message.RtmpMessageAudio;
 import com.ams.protocol.rtmp.message.RtmpMessageVideo;
 
 public class RtmpConnection {
-    private static int WAIT_DATA_TIME = 10;
     private static int CHUNK_STREAM_ID_PROTOCOL_CONTROL = 2;
     private static int CHUNK_STREAM_ID_DEFAULT          = 3;
     private static int CHUNK_STREAM_ID_VIDEO            = 5;
@@ -20,8 +20,13 @@ public class RtmpConnection {
     private ByteBufferInputStream in;
     private ByteBufferOutputStream out;
 
-    private RtmpHeaderDeserializer headerDeserializer;
+    private HashMap<Integer, RtmpHeader> chunkHeaderMap;
+    private HashMap<Integer, RtmpChunkData> chunkDataMap;
+    
+    private RtmpHeaderSerializer headerSerializer;
     private RtmpMessageSerializer messageSerializer;
+
+    private RtmpHeaderDeserializer headerDeserializer;
     private RtmpMessageDeserializer messageDeserializer;
 
     private RtmpHeader currentHeader = null;
@@ -31,21 +36,23 @@ public class RtmpConnection {
         this.conn = conn;
         this.in = conn.getInputStream();
         this.out = conn.getOutputStream();
-        this.headerDeserializer = new RtmpHeaderDeserializer(in);
-        this.messageSerializer = new RtmpMessageSerializer(out);
-        this.messageDeserializer = new RtmpMessageDeserializer(in);
+        this.headerSerializer = new RtmpHeaderSerializer(out);
+        this.chunkHeaderMap = new HashMap<Integer, RtmpHeader>();
+        this.headerDeserializer = new RtmpHeaderDeserializer(in, chunkHeaderMap);
+        this.messageSerializer = new RtmpMessageSerializer(out,headerSerializer);
+        this.chunkDataMap = new HashMap<Integer, RtmpChunkData>();
+        this.messageDeserializer = new RtmpMessageDeserializer(in, chunkDataMap);
     }
 
     public synchronized boolean readRtmpMessage() throws IOException, RtmpException {
-        conn.waitForInboundData(WAIT_DATA_TIME);
+        if (conn.readAvailable() == 0) {
+            return false;
+        }
 
         if (currentHeader != null && currentMessage != null) {
             // read new chunk
             currentHeader = null;
             currentMessage = null;
-        }
-        if (conn.readAvailable() == 0) {
-            return false;
         }
         // read header every time, a message maybe break into several chunks
         if (currentHeader == null) {

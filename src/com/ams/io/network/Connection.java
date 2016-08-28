@@ -4,8 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.ams.io.buffer.IByteBufferReader;
@@ -18,14 +17,11 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
     protected static final int DEFAULT_TIMEOUT_MS = 30000;
     protected static final int MAX_INBOUND_QUEUE_SIZE = 512;
     protected static final int MAX_OUTBOUND_QUEUE_SIZE = 512;
-    protected ConcurrentLinkedQueue<ByteBuffer> inboundBufferQueue = new ConcurrentLinkedQueue<ByteBuffer>();
-    protected ConcurrentLinkedQueue<ByteBuffer> outboundBufferQueue = new ConcurrentLinkedQueue<ByteBuffer>();
+    protected ConcurrentLinkedDeque<ByteBuffer> inboundBufferQueue = new ConcurrentLinkedDeque<ByteBuffer>();
+    protected ConcurrentLinkedDeque<ByteBuffer> outboundBufferQueue = new ConcurrentLinkedDeque<ByteBuffer>();
     protected AtomicLong readAvailable = new AtomicLong(0);
     protected boolean closed = true;
     protected int readTimeout = DEFAULT_TIMEOUT_MS;
-    
-    protected ConnectionListener listener = null;
-    protected Executor eventDispatcher = null;
     
     protected ByteBufferInputStream inStream;
     protected ByteBufferOutputStream outStream;
@@ -39,15 +35,6 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         if (!isClosed())
             return;
         closed = false;
-        // dispatch event
-        if (listener != null) {
-            dispatchEvent(new Runnable() {
-                @Override
-                public void run() {
-                    listener.onConnectionEstablished(Connection.this);
-                }
-            });
-        }
     }
 
     public void close() {
@@ -55,16 +42,6 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         try {
             flush();
         } catch (IOException e) {
-        }
-        
-        // dispatch event
-        if (listener != null) {
-            dispatchEvent(new Runnable() {
-                @Override
-                public void run() {
-                    listener.onConnectionClosed(Connection.this);
-                }
-            });
         }
     }
     
@@ -103,16 +80,6 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         synchronized (inboundBufferQueue) {
             inboundBufferQueue.notify();
         }
-        // dispatch event
-        if (listener != null) {
-            dispatchEvent(new Runnable() {
-                @Override
-                public void run() {
-                    listener.onConnectionDataReceived(Connection.this, buffers);
-                }
-            });
-        }
-        
     }
 
     public ByteBuffer[] pollOutboundBuffers() {
@@ -178,24 +145,6 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         }
     }
 
-    public boolean waitForInboundData(int time) {
-        if (readAvailable.get() == 0) {
-            long start = System.currentTimeMillis();
-            try {
-                synchronized (inboundBufferQueue) {
-                    inboundBufferQueue.wait(time);
-                }
-            } catch (InterruptedException e) {
-            }
-
-            long now = System.currentTimeMillis();
-            if (now - start >= readTimeout) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     public void setReadTimeout(int timeout) {
         this.readTimeout = timeout;
     }
@@ -208,24 +157,4 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
         return outStream;
     }
     
-    protected void dispatchEvent(Runnable event) {
-        if (eventDispatcher == null) {
-            event.run();
-        } else {
-            eventDispatcher.execute(event);
-        }
-    }
-    
-    public void setEventDispatcher(Executor eventDispatcher) {
-        this.eventDispatcher = eventDispatcher;
-    }
-    
-    public void setListener(ConnectionListener listener) {
-        this.listener = listener;
-    }
-    
-    protected ConnectionListener getListener() {
-        return listener;
-    }
-   
 }

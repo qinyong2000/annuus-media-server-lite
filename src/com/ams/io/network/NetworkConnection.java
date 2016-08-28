@@ -10,12 +10,15 @@ import com.ams.io.buffer.ByteBufferFactory;
 public class NetworkConnection extends Connection {
     protected static final int MIN_READ_BUFFER_SIZE = 256;
     protected static final int MAX_READ_BUFFER_SIZE = 64 * 1024;
+
     protected SocketChannel channel = null;
+    protected Selector selector;
+    protected SelectionKey selectionKey;
     protected int interestOps;
+    
     protected ByteBuffer readBuffer = null;
+    protected ByteBuffer[] writeBuffer = null;
     protected long keepAliveTime;
-    protected int writeTimeout = DEFAULT_TIMEOUT_MS;
-    protected int writeRetryCount = 2;
     
     public NetworkConnection() {
         super();
@@ -36,66 +39,39 @@ public class NetworkConnection extends Connection {
             readBuffer.flip();
             offerInboundBuffers(new ByteBuffer[] { readBuffer });
             readBuffer = slicedBuffer;
-        } else if (readBytes == -1) {
+        } else if (readBytes < 0) {
             throw new EOFException("read channel eof");
         }
     }
 
-    protected void writeToChannel(ByteBuffer[] data)
-            throws IOException {
-        Selector writeSelector = null;
-        SelectionKey writeKey = null;
-        int retry = 0;
-        try {
-            while (data != null) {
-                long len = channel.write(data);
-                if (len < 0) {
-                    throw new EOFException();
-                }
-
-                boolean hasRemaining = false;
-                for (ByteBuffer buf : data) {
-                    if (buf.hasRemaining()) {
-                        hasRemaining = true;
-                        break;
-                    }
-                }
-
-                if (!hasRemaining) {
-                    break;
-                }
-                if (len > 0) {
-                    retry = 0;
-                } else {
-                    retry++;
-
-                    // Check if there are more to be written.
-                    if (writeSelector == null) {
-                        writeSelector = Selector.open();
-                        try {
-                            writeKey = channel.register(writeSelector,
-                                    SelectionKey.OP_WRITE);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    if (writeSelector.select(writeTimeout) == 0) {
-                        if (retry > writeRetryCount) {
-                            throw new IOException("Client disconnected");
-                        }
-                    }
+    protected synchronized void writeToChannel() throws IOException {
+        keepAlive();
+        if (writeBuffer == null) {
+            writeBuffer = pollOutboundBuffers();
+        }
+        boolean hasRemaining = false;
+        if (writeBuffer.length > 0) {
+            long len = channel.write(writeBuffer);
+            if (len < 0) {
+                throw new EOFException("write channel error");
+            }
+            for (ByteBuffer buf : writeBuffer) {
+                if (buf.hasRemaining()) {
+                    hasRemaining = true;
                 }
             }
-        } finally {
-            if (writeKey != null) {
-                writeKey.cancel();
-                writeKey = null;
+        }
+        if (!hasRemaining) {
+            writeBuffer = null;
+        }
+        // dispatch to write
+        if (selectionKey != null && selectionKey.isValid()) {
+            if (hasRemaining) {
+                selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                selector.wakeup();
+            } else {
+                selectionKey.interestOps(SelectionKey.OP_READ);
             }
-            if (writeSelector != null) {
-                writeSelector.selectNow();
-            }
-            keepAlive();
-            data = null;
         }
     }
 
@@ -112,6 +88,11 @@ public class NetworkConnection extends Connection {
         this.interestOps = interestOps;
     }
     
+    public void setSelectionKey(Selector selector, SelectionKey key) {
+        this.selector = selector;
+        this.selectionKey = key;
+    }
+    
     public SelectableChannel getChannel() {
         return channel;
     }
@@ -120,16 +101,13 @@ public class NetworkConnection extends Connection {
         return interestOps;
     }
     
-    public synchronized void flush() throws IOException {
-        if (outStream != null) {
-            outStream.flush();
-        }
-        ByteBuffer[] buf = pollOutboundBuffers();
-        if (buf.length > 0) {
-            writeToChannel(buf);
-        }
+    @Override
+    public void flush() throws IOException {
+        super.flush();
+        writeToChannel();
     }
-
+    
+    @Override
     public void close(boolean keepAlive) {
         super.close();
         if (!keepAlive) {
@@ -138,5 +116,10 @@ public class NetworkConnection extends Connection {
             } catch (IOException e) {
             }
         }
+    }
+    
+    @Override
+    public String toString() {
+        return channel.socket().getLocalSocketAddress().toString();
     }
 }

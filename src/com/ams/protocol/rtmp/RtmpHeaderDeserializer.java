@@ -1,18 +1,17 @@
 package com.ams.protocol.rtmp;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Map;
 
 import com.ams.io.ByteBufferInputStream;
 
 public class RtmpHeaderDeserializer {
-    private HashMap<Integer, RtmpHeader> chunkHeaderMap;
+    private Map<Integer, RtmpHeader> chunkHeaderMap;
     private ByteBufferInputStream in;
 
-    public RtmpHeaderDeserializer(ByteBufferInputStream in) {
-        super();
+    public RtmpHeaderDeserializer(ByteBufferInputStream in, Map<Integer, RtmpHeader> chunkHeaderMap) {
         this.in = in;
-        this.chunkHeaderMap = new HashMap<Integer, RtmpHeader>();
+        this.chunkHeaderMap = chunkHeaderMap;
     }
 
     private RtmpHeader getLastHeader(int chunkStreamId) {

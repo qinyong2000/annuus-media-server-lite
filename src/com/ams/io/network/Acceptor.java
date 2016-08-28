@@ -89,7 +89,7 @@ public class Acceptor extends NetworkHandler {
                         Dispatcher dispatcher = dispatchers.get(nextDispatcher++);
                         // create connection
                         NetworkConnection connection = new NetworkConnection();
-                        connection.setChannelInterestOps(channel, SelectionKey.OP_READ);
+                        connection.setChannelInterestOps(channel, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
                         dispatcher.addChannelToRegister(connection);
                         logger.debug("accept connection: {}", connection);
                         if (nextDispatcher >= dispatchers.size()) {
