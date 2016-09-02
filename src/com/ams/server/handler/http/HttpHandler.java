@@ -28,18 +28,22 @@ public class HttpHandler implements IProtocolHandler {
         DefaultServlet servlet = new DefaultServlet(context);
         HttpRequest request = new HttpRequest(connection.getInputStream());
         HttpResponse response = new HttpResponse(connection.getOutputStream());
+
         try {
             request.parse();
+
             servlet.service(request, response);
             if (request.isKeepAlive()) {
                 connection.close(true);
             } else {
                 connection.close();
             }
+            connection.done();
         } catch (IOException e) {
             logger.debug(e.getMessage());
             close();
-        } catch (ReadBlockingException e1) {
+        } catch (ReadBlockingException e) {
+            connection.revert();
         }
     }
 
@@ -48,7 +52,7 @@ public class HttpHandler implements IProtocolHandler {
     }
 
     public boolean isKeepAlive() {
-        return false;
+        return !connection.isClosed();
     }
 
 }

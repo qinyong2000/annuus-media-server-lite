@@ -38,8 +38,9 @@ public class RtmpHandler implements IProtocolHandler {
             logger.debug(e.getMessage());
             close();
         } catch (RtmpException e) {
-	        e.printStackTrace();
+            e.printStackTrace();
         } catch (ReadBlockingException e) {
+            e.printStackTrace();
         }
         
     }

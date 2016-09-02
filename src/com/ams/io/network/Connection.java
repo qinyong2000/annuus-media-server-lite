@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -12,8 +13,10 @@ import com.ams.io.buffer.IByteBufferWriter;
 import com.ams.io.buffer.BufferUtils;
 import com.ams.io.ByteBufferInputStream;
 import com.ams.io.ByteBufferOutputStream;
+import com.ams.io.IRevertable;
+import com.ams.io.ReadBlockingException;
 
-public class Connection implements IByteBufferReader, IByteBufferWriter {
+public class Connection implements IByteBufferReader, IByteBufferWriter, IRevertable {
     protected static final int DEFAULT_TIMEOUT_MS = 30000;
     protected static final int MAX_INBOUND_QUEUE_SIZE = 512;
     protected static final int MAX_OUTBOUND_QUEUE_SIZE = 512;
@@ -22,13 +25,14 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
     protected AtomicLong readAvailable = new AtomicLong(0);
     protected boolean closed = true;
     protected int readTimeout = DEFAULT_TIMEOUT_MS;
-    
+    protected Stack<ByteBuffer> stack;
     protected ByteBufferInputStream inStream;
     protected ByteBufferOutputStream outStream;
 
     public Connection() {
         this.inStream = new ByteBufferInputStream(this);
         this.outStream = new ByteBufferOutputStream(this);
+        this.stack = new Stack<ByteBuffer>();
     }
 
     public void open() {
@@ -38,6 +42,7 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
     }
 
     public void close() {
+        stack.clear();
         closed = true;
         try {
             flush();
@@ -102,18 +107,21 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
 
                 if (length >= remain) {
                     list.add(inboundBufferQueue.poll());
+                    stack.push(buffer);
                     length -= remain;
                     readAvailable.addAndGet(-remain);
                 } else {
                     ByteBuffer slice = BufferUtils.trim(buffer, length);
                     list.add(slice);
+                    stack.push(slice);
                     readAvailable.addAndGet(-length);
                     length = 0;
                 }
             } else {
+              throw new ReadBlockingException();
                 // wait new buffer append to queue
                 // sleep for timeout ms
-                long start = System.currentTimeMillis();
+/*                long start = System.currentTimeMillis();
                 try {
                     synchronized (inboundBufferQueue) {
                         inboundBufferQueue.wait(readTimeout);
@@ -125,6 +133,7 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
                 if (now - start >= readTimeout) {
                     throw new IOException("read time out");
                 }
+*/
             }
         } // end while
         return list.toArray(new ByteBuffer[list.size()]);
@@ -155,6 +164,18 @@ public class Connection implements IByteBufferReader, IByteBufferWriter {
 
     public ByteBufferOutputStream getOutputStream() {
         return outStream;
+    }
+
+    @Override
+    public void done() {
+        this.stack.clear();
+    }
+
+    @Override
+    public void revert() {
+         while(!stack.isEmpty()) {
+           inboundBufferQueue.addFirst(stack.pop());
+         }
     }
     
 }
