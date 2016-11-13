@@ -88,7 +88,7 @@ public class ClientNetworkConnection extends NetworkConnection {
             channel.socket().bind(bindPoint);
             channel.configureBlocking(false);
             interestOps = SelectionKey.OP_CONNECT;
-            getNetworkDispatcher().addChannelToRegister(this);
+            getNetworkDispatcher().addConnectionToRegister(this);
         }
         channel.connect(remote);
         startTime = System.currentTimeMillis();

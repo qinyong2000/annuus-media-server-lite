@@ -1,14 +1,15 @@
-package com.ams.server.handler.replication;
+package com.ams.server.handler.rtmp.replication;
 
-import com.ams.server.handler.ProtocolHandlerExecutor;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class ReplSlaveService {
-    private ProtocolHandlerExecutor executor;
+    private ScheduledThreadPoolExecutor executor;
     private ReplSlaveHandler handler = null;
     private static ReplSlaveService instance = null;
     
     private ReplSlaveService() {
-        this.executor = new ProtocolHandlerExecutor(1);
+         this.executor = new ScheduledThreadPoolExecutor(1);
     }
     
     public static synchronized ReplSlaveService getInstance() {
@@ -21,7 +22,7 @@ public class ReplSlaveService {
     public void invoke(String host, int port) {
         if (handler == null) {
             handler = new ReplSlaveHandler(host, port);
-            executor.execute(handler);
+            executor.scheduleWithFixedDelay(handler, 0, 100, TimeUnit.MICROSECONDS);
         }
     }
     

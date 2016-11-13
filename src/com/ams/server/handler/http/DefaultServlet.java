@@ -1,4 +1,4 @@
-package com.ams.protocol.http;
+package com.ams.server.handler.http;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -8,6 +8,11 @@ import java.nio.channels.FileChannel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.ams.protocol.http.HTTP;
+import com.ams.protocol.http.HttpRequest;
+import com.ams.protocol.http.HttpResponse;
+import com.ams.protocol.http.ServletContext;
 
 public class DefaultServlet {
     private final Logger logger = LoggerFactory.getLogger(DefaultServlet.class);

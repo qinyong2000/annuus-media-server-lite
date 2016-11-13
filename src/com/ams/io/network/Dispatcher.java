@@ -1,7 +1,6 @@
 package com.ams.io.network;
 
 import java.io.IOException;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
@@ -33,7 +32,7 @@ public class Dispatcher extends NetworkHandler {
         this.protocolService = protocolService;
     }
     
-    public void addChannelToRegister(NetworkConnection connection) {
+    public void addConnectionToRegister(NetworkConnection connection) {
         registerConnectionQueue.offer(connection);
         selector.wakeup();
     }
@@ -41,7 +40,7 @@ public class Dispatcher extends NetworkHandler {
     public void run() {
         while (isRunning()) {
             // register a new channel
-            registerNewChannel();
+            registerConnection();
 
             // do select
             doSelect();
@@ -53,17 +52,10 @@ public class Dispatcher extends NetworkHandler {
         closeAllKeys();
     }
 
-    private void registerNewChannel() {
-    	NetworkConnection connection = null;
+    private void registerConnection() {
+        NetworkConnection connection = null;
         while ((connection = registerConnectionQueue.poll()) != null) {
-            try {
-                SelectableChannel channel = connection.getChannel();
-                int interestOps = connection.getInterestOps();
-                channel.configureBlocking(false);
-                channel.register(selector, interestOps, connection);
-            } catch (Exception e) {
-                logger.debug("register channel error: {}", connection);
-            }
+            connection.registerChannel(selector);
         }
     }
 
@@ -86,12 +78,11 @@ public class Dispatcher extends NetworkHandler {
         while (it.hasNext()) {
             SelectionKey key = it.next();
             it.remove();
-
+        
             if (!key.isValid()) {
                 continue;
             }
             NetworkConnection connection = (NetworkConnection) key.attachment();
-            connection.setSelectionKey(selector, key);
             try {
                 if (key.isConnectable() && connection instanceof ClientNetworkConnection) {
                     ClientNetworkConnection clientConnection = (ClientNetworkConnection) connection;

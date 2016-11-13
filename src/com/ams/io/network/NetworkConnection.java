@@ -5,17 +5,22 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.ams.io.buffer.ByteBufferFactory;
 
 public class NetworkConnection extends Connection {
+    private final Logger logger = LoggerFactory.getLogger(NetworkConnection.class);
+    
     protected static final int MIN_READ_BUFFER_SIZE = 256;
     protected static final int MAX_READ_BUFFER_SIZE = 64 * 1024;
 
-    protected SocketChannel channel = null;
     protected Selector selector;
+    protected SocketChannel channel = null;
     protected SelectionKey selectionKey;
     protected int interestOps;
-    
+
     protected ByteBuffer readBuffer = null;
     protected ByteBuffer[] writeBuffer = null;
     protected long keepAliveTime;
@@ -25,6 +30,16 @@ public class NetworkConnection extends Connection {
         keepAlive();
     }
 
+    protected void registerChannel(Selector selector) {
+        this.selector = selector;
+        try {
+            this.selectionKey = channel.register(selector, interestOps, this);
+            logger.debug("registered connection: {}", this);
+        } catch (ClosedChannelException e) {
+            logger.debug("register connection error: {}", this);
+        }
+    }
+    
     protected void readChannel() throws IOException {
         if (isReadBlocking()) {
             return;
@@ -83,24 +98,6 @@ public class NetworkConnection extends Connection {
         return keepAliveTime;
     }
 
-    public void setChannelInterestOps(SocketChannel channel, int interestOps) {
-        this.channel = channel;
-        this.interestOps = interestOps;
-    }
-    
-    public void setSelectionKey(Selector selector, SelectionKey key) {
-        this.selector = selector;
-        this.selectionKey = key;
-    }
-    
-    public SelectableChannel getChannel() {
-        return channel;
-    }
-
-    public int getInterestOps() {
-        return interestOps;
-    }
-    
     @Override
     public void flush() throws IOException {
         super.flush();
@@ -113,6 +110,7 @@ public class NetworkConnection extends Connection {
         if (!keepAlive) {
             try {
                 if (channel != null) channel.close();
+                selectionKey = null;
             } catch (IOException e) {
             }
         }

@@ -18,7 +18,7 @@ abstract class NetworkHandler implements Runnable {
         this.thread.start();
     }
 
-    public void stop() {
+    public void shutdown() {
         running = false;
         try {
             thread.interrupt();

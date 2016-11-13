@@ -80,6 +80,7 @@ public class Acceptor extends NetworkHandler {
                 try {
                     ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
                     SocketChannel channel = serverChannel.accept();
+                    channel.configureBlocking(false);
 
                     if (socketProperties != null) {
                         socketProperties.setSocketProperties(channel.socket());
@@ -89,8 +90,9 @@ public class Acceptor extends NetworkHandler {
                         Dispatcher dispatcher = dispatchers.get(nextDispatcher++);
                         // create connection
                         NetworkConnection connection = new NetworkConnection();
-                        connection.setChannelInterestOps(channel, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-                        dispatcher.addChannelToRegister(connection);
+                        connection.channel = channel;
+                        connection.interestOps = SelectionKey.OP_READ | SelectionKey.OP_WRITE;
+                        dispatcher.addConnectionToRegister(connection);
                         logger.debug("accept connection: {}", connection);
                         if (nextDispatcher >= dispatchers.size()) {
                             nextDispatcher = 0;
@@ -125,12 +127,13 @@ public class Acceptor extends NetworkHandler {
         }
     }
 
-    public void stop() {
+    public void shutdown() {
         for (int i = 0; i < dispatchers.size(); i++) {
-            dispatchers.get(i).stop();
+            dispatchers.get(i).shutdown();
         }
+        protocolService.shutdown();
         closeChannel();
-        super.stop();
+        super.shutdown();
     }
 
 }

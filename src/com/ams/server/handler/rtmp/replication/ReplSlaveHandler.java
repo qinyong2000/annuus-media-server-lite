@@ -1,4 +1,4 @@
-package com.ams.server.handler.replication;
+package com.ams.server.handler.rtmp.replication;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -17,9 +17,8 @@ import com.ams.protocol.rtmp.amf.AmfValue;
 import com.ams.protocol.rtmp.message.RtmpMessage;
 import com.ams.protocol.rtmp.message.RtmpMessageCommand;
 import com.ams.protocol.rtmp.net.PublisherManager;
-import com.ams.server.handler.IProtocolHandler;
 
-public class ReplSlaveHandler implements IProtocolHandler {
+public class ReplSlaveHandler implements Runnable {
     private final Logger logger = LoggerFactory.getLogger(ReplSlaveHandler.class);
 
     private ClientNetworkConnection connection;
@@ -66,17 +65,8 @@ public class ReplSlaveHandler implements IProtocolHandler {
         } catch (Exception e) {
             e.printStackTrace();
             logger.debug(e.getMessage());
+            connection.close();
         }
-    }
-
-    @Override
-    public boolean isKeepAlive() {
-        return true;
-    }
-
-    @Override
-    public void close() {
-        connection.close();
     }
 
     private void receive() throws IOException, RtmpException {
@@ -159,4 +149,5 @@ public class ReplSlaveHandler implements IProtocolHandler {
         logger.info("subscribe stream: {} from master", name);
         subscribingRequest.add(name);
     }
+    
 }

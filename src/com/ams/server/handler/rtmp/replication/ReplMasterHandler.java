@@ -1,7 +1,8 @@
-package com.ams.server.handler.replication;
+package com.ams.server.handler.rtmp.replication;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,16 +17,16 @@ import com.ams.protocol.rtmp.net.NetConnection;
 import com.ams.protocol.rtmp.net.NetStream;
 import com.ams.protocol.rtmp.net.PublisherManager;
 import com.ams.protocol.rtmp.net.StreamPublisher;
-import com.ams.server.handler.IProtocolHandler;
 
-public class ReplMasterHandler implements IProtocolHandler {
+public class ReplMasterHandler implements Runnable {
     final private Logger logger = LoggerFactory.getLogger(ReplMasterHandler.class);
 
     private Connection connection;
     private RtmpConnection rtmp;
     private NetConnection netConn;
     private HashMap<String, ReplStreamSubscriber> streamSubscribers = new HashMap<String, ReplStreamSubscriber>();
-
+    private Future<?> future;
+    
     public ReplMasterHandler(Connection connection) {
         this.connection =connection;
         this.rtmp = new RtmpConnection(connection);
@@ -33,26 +34,24 @@ public class ReplMasterHandler implements IProtocolHandler {
     }
 
     public void run() {
+        if (connection.isClosed()) {
+            if (future != null) {
+                future.cancel(true);
+                logger.debug("rtmp repl master handle cancelled");
+            }
+            return;
+         }
+
         try {
             receive();
             send();
             connection.flush();
         } catch (Exception e) {
             logger.debug(e.getMessage());
-            close();
+            connection.close();
         }
     }
 
-    @Override
-    public boolean isKeepAlive() {
-        return !connection.isClosed();
-    }
-
-    @Override
-    public void close() {
-        connection.close();
-    }
-    
     private void receive() throws IOException, RtmpException {
         if (!rtmp.readRtmpMessage())
             return;
@@ -96,10 +95,15 @@ public class ReplMasterHandler implements IProtocolHandler {
                     streamSubscribers.remove(publishName);
                 }
             }
-            Thread.sleep(10);
         } catch (Exception e) {
             e.printStackTrace();
             logger.debug(e.getMessage());
         }
     }    
+
+    public void setFuture(Future<?> future) {
+        this.future = future;
+    }
+
+
 }

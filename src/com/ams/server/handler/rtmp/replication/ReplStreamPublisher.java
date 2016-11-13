@@ -1,4 +1,4 @@
-package com.ams.server.handler.replication;
+package com.ams.server.handler.rtmp.replication;
 
 import com.ams.protocol.rtmp.net.StreamPublisher;
 

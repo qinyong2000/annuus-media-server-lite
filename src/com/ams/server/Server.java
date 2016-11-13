@@ -11,27 +11,22 @@ import org.slf4j.LoggerFactory;
 import com.ams.io.buffer.ByteBufferAllocator;
 import com.ams.io.buffer.ByteBufferFactory;
 import com.ams.io.network.Acceptor;
-import com.ams.server.handler.IProtocolHandler;
 import com.ams.server.handler.IProtocolService;
-import com.ams.server.handler.ProtocolHandlerExecutor;
 import com.ams.server.handler.http.HttpService;
-import com.ams.server.handler.replication.ReplMasterService;
-import com.ams.server.handler.replication.ReplSlaveService;
 import com.ams.server.handler.rtmp.RtmpService;
+import com.ams.server.handler.rtmp.replication.ReplMasterService;
+import com.ams.server.handler.rtmp.replication.ReplSlaveService;
 
 public class Server {
     private Logger logger = LoggerFactory.getLogger(Server.class);
 
     private Configuration config;
     private ArrayList<Acceptor> acceptors;
-    private IProtocolHandler replicationSlaveHandler;
-    private ProtocolHandlerExecutor executor;
 
     public Server(Configuration config) throws IOException {
         this.config = config;
         this.acceptors = new ArrayList<Acceptor>();
-        int poolSize = config.getWokerThreadPoolSize();
-        executor = new ProtocolHandlerExecutor(poolSize);
+
         initByteBufferFactory(config);
         
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -65,7 +60,7 @@ public class Server {
                 SocketAddress httpEndpoint = new InetSocketAddress(
                         config.getHttpHost(), config.getHttpPort());
                 addTcpListenEndpoint(httpEndpoint,
-                        new HttpService(config.getHttpContextRoot(), executor));
+                        new HttpService(config.getHttpContextRoot(), config.getWokerThreadPoolSize()));
             }
         } catch (Exception e) {
             logger.info("Creating http service failed.");
@@ -76,7 +71,7 @@ public class Server {
             if (config.getRtmpHost() != null) {
                 SocketAddress rtmpEndpoint = new InetSocketAddress(config.getRtmpHost(), config.getRtmpPort());
                 addTcpListenEndpoint(rtmpEndpoint,
-                        new RtmpService(config.getRtmpContextRoot(), executor));
+                        new RtmpService(config.getRtmpContextRoot(), config.getWokerThreadPoolSize()));
             }
         } catch (Exception e) {
             logger.info("Creating rtmp service failed.");
@@ -89,7 +84,7 @@ public class Server {
         if (config.getReplicationHost() != null) {
             try {
                 InetSocketAddress replicationEndpoint = new InetSocketAddress(config.getReplicationHost(), config.getReplicationPort());
-                addTcpListenEndpoint(replicationEndpoint, new ReplMasterService(executor));
+                addTcpListenEndpoint(replicationEndpoint, new ReplMasterService());
             } catch (Exception e) {
                 logger.info("Creating unicast replication service failed.");
             }
@@ -100,7 +95,7 @@ public class Server {
         }
     }
 
-    private void startupService() {
+    private void startupProtocolService() {
         for (Acceptor acceptor : acceptors) {
             acceptor.start();
             logger.info("Start service on port: {}", acceptor.getListenAddress());
@@ -110,21 +105,17 @@ public class Server {
     public void startup() {
         createService();
         createReplicationService();
-        startupService();
+        startupProtocolService();
         logger.info("Server is started.");
     }
 
     public void shutdown() {
-        if (replicationSlaveHandler != null) {
-            replicationSlaveHandler.close();
-        }
         for (Acceptor acceptor : acceptors) {
-            acceptor.stop();
+            acceptor.shutdown();
             SocketAddress endpoint = acceptor.getListenAddress();
             logger.info("Shutdown service on port: {}", endpoint);
             System.out.println("Shutdown service on port: " + endpoint);
         }
-        executor.shutdown();
         logger.info("Server is shutdown.");
         System.out.println("Server is shutdown.");
     }

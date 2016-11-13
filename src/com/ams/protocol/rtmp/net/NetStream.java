@@ -21,7 +21,7 @@ import com.ams.protocol.rtmp.message.RtmpMessageChunkSize;
 import com.ams.protocol.rtmp.message.RtmpMessageCommand;
 import com.ams.protocol.rtmp.message.RtmpMessageData;
 import com.ams.protocol.rtmp.message.RtmpMessageUserControl;
-import com.ams.server.handler.replication.ReplSlaveService;
+import com.ams.server.handler.rtmp.replication.ReplSlaveService;
 
 public class NetStream {
     private Logger logger = LoggerFactory.getLogger(NetStream.class);
