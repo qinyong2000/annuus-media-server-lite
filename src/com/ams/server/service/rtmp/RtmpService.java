@@ -1,4 +1,4 @@
-package com.ams.server.handler.rtmp;
+package com.ams.server.service.rtmp;
 
 import java.io.IOException;
 import java.util.concurrent.Future;
@@ -13,11 +13,11 @@ import com.ams.protocol.rtmp.RtmpConnection;
 import com.ams.protocol.rtmp.RtmpException;
 import com.ams.protocol.rtmp.net.NetConnection;
 import com.ams.protocol.rtmp.net.NetContext;
-import com.ams.server.handler.IProtocolService;
+import com.ams.server.service.IProtocolService;
 
 public class RtmpService implements IProtocolService {
     private final Logger logger = LoggerFactory.getLogger(RtmpService.class);
-  
+
     private NetContext context;
     private ScheduledThreadPoolExecutor executor;
 
@@ -26,7 +26,7 @@ public class RtmpService implements IProtocolService {
         this.executor = new ScheduledThreadPoolExecutor(poolSize);
    }
     
-	@Override
+    @Override
     public void invoke(final Connection connection) {
         logger.debug("invoke a rtmp connection service");
         final RtmpConnection rtmp = new RtmpConnection(connection);

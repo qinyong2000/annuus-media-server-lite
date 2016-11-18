@@ -11,11 +11,11 @@ import org.slf4j.LoggerFactory;
 import com.ams.io.buffer.ByteBufferAllocator;
 import com.ams.io.buffer.ByteBufferFactory;
 import com.ams.io.network.Acceptor;
-import com.ams.server.handler.IProtocolService;
-import com.ams.server.handler.http.HttpService;
-import com.ams.server.handler.rtmp.RtmpService;
-import com.ams.server.handler.rtmp.replication.ReplMasterService;
-import com.ams.server.handler.rtmp.replication.ReplSlaveService;
+import com.ams.server.service.IProtocolService;
+import com.ams.server.service.http.HttpService;
+import com.ams.server.service.rtmp.RtmpService;
+import com.ams.server.service.rtmp.replication.ReplMasterService;
+import com.ams.server.service.rtmp.replication.ReplSlaveService;
 
 public class Server {
     private Logger logger = LoggerFactory.getLogger(Server.class);
@@ -31,7 +31,7 @@ public class Server {
         
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
-                shutdown();
+                shutdownAllService();
             }
         });
     }
@@ -53,7 +53,7 @@ public class Server {
         acceptors.add(acceptor);
     }
 
-    private void createService() {
+    private void createProtocolService() {
         // http service
         try {
             if (config.getHttpHost() != null) {
@@ -95,7 +95,7 @@ public class Server {
         }
     }
 
-    private void startupProtocolService() {
+    private void startupAllService() {
         for (Acceptor acceptor : acceptors) {
             acceptor.start();
             logger.info("Start service on port: {}", acceptor.getListenAddress());
@@ -103,13 +103,13 @@ public class Server {
     }
 
     public void startup() {
-        createService();
+        createProtocolService();
         createReplicationService();
-        startupProtocolService();
+        startupAllService();
         logger.info("Server is started.");
     }
 
-    public void shutdown() {
+    public void shutdownAllService() {
         for (Acceptor acceptor : acceptors) {
             acceptor.shutdown();
             SocketAddress endpoint = acceptor.getListenAddress();

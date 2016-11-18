@@ -1,4 +1,4 @@
-package com.ams.server.handler;
+package com.ams.server.service;
 
 import com.ams.io.network.Connection;
 

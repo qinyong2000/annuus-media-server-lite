@@ -1,4 +1,4 @@
-package com.ams.server.handler.rtmp.replication;
+package com.ams.server.service.rtmp.replication;
 
 import java.io.IOException;
 import java.util.HashMap;

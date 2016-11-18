@@ -1,4 +1,4 @@
-package com.ams.server.handler.http;
+package com.ams.server.service.http;
 
 import java.io.File;
 import java.io.FileInputStream;

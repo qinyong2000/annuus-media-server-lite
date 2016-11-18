@@ -1,4 +1,4 @@
-package com.ams.server.handler.http;
+package com.ams.server.service.http;
 
 import java.io.IOException;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -13,7 +13,7 @@ import com.ams.io.network.NetworkConnection;
 import com.ams.protocol.http.HttpRequest;
 import com.ams.protocol.http.HttpResponse;
 import com.ams.protocol.http.ServletContext;
-import com.ams.server.handler.IProtocolService;
+import com.ams.server.service.IProtocolService;
 
 public class HttpService implements IProtocolService {
     private final Logger logger = LoggerFactory.getLogger(NetworkConnection.class);
@@ -54,7 +54,7 @@ public class HttpService implements IProtocolService {
         executor.execute(handler);
     }
 
-	@Override
+    @Override
     public void shutdown() {
         executor.shutdown();
     }

@@ -9,7 +9,7 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.ams.server.handler.IProtocolService;
+import com.ams.server.service.IProtocolService;
 
 public class Acceptor extends NetworkHandler {
     private final Logger logger = LoggerFactory.getLogger(Acceptor.class);

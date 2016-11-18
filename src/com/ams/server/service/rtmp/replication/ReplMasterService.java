@@ -1,4 +1,4 @@
-package com.ams.server.handler.rtmp.replication;
+package com.ams.server.service.rtmp.replication;
 
 import java.io.IOException;
 import java.util.concurrent.Future;
@@ -6,7 +6,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.ams.io.network.Connection;
-import com.ams.server.handler.IProtocolService;
+import com.ams.server.service.IProtocolService;
 
 public class ReplMasterService implements IProtocolService {
     private ScheduledThreadPoolExecutor executor;
